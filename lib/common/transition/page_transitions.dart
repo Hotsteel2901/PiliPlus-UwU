@@ -110,6 +110,10 @@ abstract final class HotPageTransitions {
     if (cardZoomEnabled && _cardZoomOf(route) != null) {
       return cardZoomDuration;
     }
+    if (m3eEnabled) {
+      // Matches `m3eRouteSpring`.
+      return const Duration(milliseconds: 450);
+    }
     // Everything else keeps the stock, snappy 300ms.
     return null;
   }
@@ -127,6 +131,7 @@ abstract final class HotPageTransitions {
       final origin = _cardZoomOf(route);
       if (origin != null) {
         final zoom = _CardZoomTransition(
+          route: route,
           animation: animation,
           origin: origin,
           child: child,
@@ -138,6 +143,7 @@ abstract final class HotPageTransitions {
     }
     if (m3eEnabled) {
       final float = _M3EFloatPageTransition(
+        route: route,
         animation: animation,
         child: child,
       );
@@ -285,8 +291,13 @@ class _ContinuousBackProgressState extends State<ContinuousBackProgress> {
 /// The default transition: the page floats up over the previous one, and on the
 /// way back it follows the finger and shrinks into a rounded card.
 class _M3EFloatPageTransition extends StatelessWidget {
-  const _M3EFloatPageTransition({required this.animation, required this.child});
+  const _M3EFloatPageTransition({
+    required this.route,
+    required this.animation,
+    required this.child,
+  });
 
+  final PageRoute<dynamic> route;
   final Animation<double> animation;
   final Widget child;
 
@@ -304,13 +315,19 @@ class _M3EFloatPageTransition extends StatelessWidget {
       animation: animation,
       builder: (context, progress) {
         // progress: 0 = on top, 1 = dismissed.
-        final t = progress.clamp(0.0, 1.0);
+        final raw = progress.clamp(0.0, 1.0);
         // At rest the page must not be wrapped in a transform/clip layer:
         // a `BackdropFilter` inside one renders incorrectly (and flickers) on
         // Skia, and there is nothing to animate anyway.
-        if (t <= 0.001) {
+        if (raw <= 0.001) {
           return child;
         }
+        // While a back gesture is dragging the page it must track the finger
+        // 1:1; a timed push/pop gets the M3E spring curve so it feels organic
+        // instead of linear.
+        final t = route.popGestureInProgress
+            ? raw
+            : m3eRouteSpring.transform(raw);
         final slide = size.width * 0.22 * direction * t;
         final scale = 1 - 0.06 * t;
 
@@ -369,7 +386,7 @@ class _M3EFloatSecondaryTransition extends StatelessWidget {
       builder: (context, reveal) {
         // reveal: 1 = fully visible, 0 = fully covered.
         final r = reveal.clamp(0.0, 1.0);
-        final covered = 1 - r;
+        final covered = Curves.easeInOutCubicEmphasized.transform(1 - r);
         if (covered <= 0.001) {
           return child;
         }
@@ -409,11 +426,13 @@ class _M3EFloatSecondaryTransition extends StatelessWidget {
 /// dragging the player back towards the card.
 class _CardZoomTransition extends StatelessWidget {
   const _CardZoomTransition({
+    required this.route,
     required this.animation,
     required this.origin,
     required this.child,
   });
 
+  final PageRoute<dynamic> route;
   final Animation<double> animation;
   final CardZoomOrigin origin;
   final Widget child;
@@ -426,12 +445,16 @@ class _CardZoomTransition extends StatelessWidget {
     return ContinuousBackProgress(
       animation: animation,
       builder: (context, progress) {
-        final t = (1 - progress).clamp(0.0, 1.0);
+        final raw = (1 - progress).clamp(0.0, 1.0);
         // Fully open: hand the page back untouched so its own `BackdropFilter`
         // glass renders normally (a permanent transform/clip layer breaks it).
-        if (t >= 0.999) {
+        if (raw >= 0.999) {
           return child;
         }
+        // 1:1 while the back gesture drags it, spring otherwise.
+        final t = route.popGestureInProgress
+            ? raw
+            : m3ePopSpring.transform(raw);
         final end = Offset.zero & size;
         final live = origin.resolve();
         final begin = _clampToScreen(live ?? origin.begin, size);
