@@ -17,7 +17,6 @@
 
 import 'dart:math' as math;
 
-import 'package:PiliPlus/common/m3e/m3e.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/services.dart' show PredictiveBackEvent;
@@ -83,13 +82,17 @@ abstract final class HotPageTransitions {
   /// Duration of the video card container transform.
   static const Duration cardZoomDuration = Duration(milliseconds: 420);
 
-  /// Custom transition only applies while the user has not picked another
-  /// (non native) page transition in the appearance settings.
-  static bool get enabled =>
-      Pref.hotTransitions && Pref.pageTransition == Transition.native;
+  /// Only the app's own native page transition is ever replaced.
+  static bool get _native => Pref.pageTransition == Transition.native;
 
-  /// The video card container transform can be disabled on its own.
-  static bool get cardZoomEnabled => enabled && Pref.cardZoomTransition;
+  /// The generic M3E page open/close transition (opt in: it is the heaviest).
+  static bool get m3eEnabled => _native && Pref.m3eTransition;
+
+  /// The video card container transform, independent from [m3eEnabled].
+  static bool get cardZoomEnabled => _native && Pref.cardZoomTransition;
+
+  /// Whether the app drives the Android predictive back gesture itself.
+  static bool get predictiveBack => _native && Pref.predictiveBack;
 
   static int _lastTap = 0;
 
@@ -104,13 +107,11 @@ abstract final class HotPageTransitions {
   }
 
   static Duration? durationFor(PageRoute<dynamic> route) {
-    if (!enabled) {
-      return null;
-    }
     if (cardZoomEnabled && _cardZoomOf(route) != null) {
       return cardZoomDuration;
     }
-    return M3EMotion.slow;
+    // Everything else keeps the stock, snappy 300ms.
+    return null;
   }
 
   static Widget buildNative(
@@ -120,43 +121,42 @@ abstract final class HotPageTransitions {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final origin = cardZoomEnabled ? _cardZoomOf(route) : null;
-    if (origin != null) {
-      return PredictiveBackGestureHandler(
-        route: route,
-        child: _CardZoomTransition(
+    // The video card zoom is independent: it can be used on its own even when
+    // the generic M3E transition is disabled.
+    if (cardZoomEnabled) {
+      final origin = _cardZoomOf(route);
+      if (origin != null) {
+        final zoom = _CardZoomTransition(
           animation: animation,
           origin: origin,
           child: child,
-        ),
-      );
+        );
+        return predictiveBack
+            ? PredictiveBackGestureHandler(route: route, child: zoom)
+            : zoom;
+      }
     }
-    if (!enabled) {
-      // Fall back to the stock (patched) Android transition, which brings its
-      // own gesture detector.
-      return const PredictiveBackPageTransitionsBuilder().buildTransitions(
-        route,
-        context,
-        animation,
-        secondaryAnimation,
-        child,
-      );
-    }
-    // The stock `PredictiveBackPageTransitionsBuilder` is the piece that
-    // observes the system back gesture and feeds it into `route.animation`;
-    // replacing the builder means we have to keep that observer ourselves,
-    // otherwise predictive back stops working.
-    return PredictiveBackGestureHandler(
-      route: route,
-      child: _M3EFloatPageTransition(
+    if (m3eEnabled) {
+      final float = _M3EFloatPageTransition(
         animation: animation,
         child: child,
-      ),
-    );
+      );
+      return predictiveBack
+          ? PredictiveBackGestureHandler(route: route, child: float)
+          : float;
+    }
+    // Stock path. `PredictiveBackPageTransitionsBuilder` keeps the Android
+    // predictive back gesture (and brings its own observer); when predictive
+    // back is turned off we use the plain M3 fade-forwards transition.
+    return (predictiveBack
+            ? const PredictiveBackPageTransitionsBuilder()
+            : const FadeForwardsPageTransitionsBuilder())
+        .buildTransitions(route, context, animation, secondaryAnimation, child);
   }
 
-  /// Animates the route below an incoming transition with a matching parallax,
-  /// so the two routes move as one surface.
+  /// Animates the route below an incoming transition so the two routes move as
+  /// one surface. The custom paths use a matching scale, the stock path reuses
+  /// the platform's fade-forwards delegation.
   static Widget? buildDelegated(
     BuildContext context,
     Animation<double> animation,
@@ -164,13 +164,28 @@ abstract final class HotPageTransitions {
     bool allowSnapshotting,
     Widget? child,
   ) {
-    if (child == null || !enabled) {
+    if (child == null || !_native) {
       return child;
     }
-    return _M3EFloatSecondaryTransition(
-      animation: secondaryAnimation,
-      child: child,
-    );
+    if (m3eEnabled || cardZoomEnabled) {
+      return _M3EFloatSecondaryTransition(
+        animation: secondaryAnimation,
+        child: child,
+      );
+    }
+    final delegated =
+        const FadeForwardsPageTransitionsBuilder().delegatedTransition;
+    if (delegated == null) {
+      return child;
+    }
+    return delegated(
+          context,
+          animation,
+          secondaryAnimation,
+          allowSnapshotting,
+          child,
+        ) ??
+        child;
   }
 
   static CardZoomOrigin? _cardZoomOf(PageRoute<dynamic> route) {
