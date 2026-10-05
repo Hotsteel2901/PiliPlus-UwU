@@ -86,7 +86,19 @@ extension M3EThemeDataExt on ThemeData {
           shape: const WidgetStatePropertyAll<OutlinedBorder?>(M3EShape.md),
         ),
       ),
-      snackBarTheme: snackBarTheme.copyWith(shape: M3EShape.sm),
+      snackBarTheme: snackBarTheme.copyWith(
+        elevation: 0,
+        shape: M3EShape.sm,
+        insetPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      ),
+      tooltipTheme: tooltipTheme.copyWith(
+        decoration: ShapeDecoration(
+          color: colors.inverseSurface,
+          shape: M3EShape.xs,
+        ),
+        textStyle: TextStyle(color: colors.onInverseSurface, fontSize: 12),
+        waitDuration: const Duration(milliseconds: 400),
+      ),
       chipTheme: chipTheme.copyWith(shape: M3EShape.sm),
       floatingActionButtonTheme: floatingActionButtonTheme.copyWith(
         elevation: 0,
@@ -105,6 +117,37 @@ extension M3EThemeDataExt on ThemeData {
       navigationRailTheme: navigationRailTheme.copyWith(
         indicatorShape: M3EShape.full,
         useIndicator: true,
+      ),
+      navigationDrawerTheme: navigationDrawerTheme.copyWith(
+        elevation: 0,
+        indicatorColor: colors.secondaryContainer,
+        indicatorShape: M3EShape.full,
+        tileHeight: 56,
+      ),
+      drawerTheme: drawerTheme.copyWith(
+        elevation: 0,
+        backgroundColor: colors.surfaceContainerLow,
+        surfaceTintColor: colors.surfaceTint,
+        endShape: M3EShape.of(
+          const BorderRadius.horizontal(
+            right: Radius.circular(M3ECorner.xxl),
+          ),
+        ),
+      ),
+      bottomAppBarTheme: bottomAppBarTheme.copyWith(
+        elevation: 0,
+        color: colors.surfaceContainer,
+        surfaceTintColor: colors.surfaceTint,
+      ),
+      listTileTheme: listTileTheme.copyWith(shape: M3EShape.md),
+      dividerTheme: dividerTheme.copyWith(
+        color: colors.outlineVariant.withValues(alpha: 0.6),
+        thickness: 1,
+        space: 1,
+      ),
+      badgeTheme: badgeTheme.copyWith(
+        backgroundColor: colors.error,
+        textColor: colors.onError,
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: mergePill(segmentedButtonTheme.style),

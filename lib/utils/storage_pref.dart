@@ -526,12 +526,39 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.enableHaze, defaultValue: true);
 
   /// Blur quality used by the Haze glass system.
+  ///
+  /// `-1` (the default) lets the app choose automatically: full quality on
+  /// desktop, balanced on mobile.
   static HazeQuality get hazeQuality {
+    final index = _setting.get(SettingBoxKey.hazeQuality, defaultValue: -1);
+    if (index >= 0 && index < HazeQuality.values.length) {
+      return HazeQuality.values[index];
+    }
     if (PlatformUtils.isDesktop) {
       return HazeQuality.quality;
     }
     return HazeQuality.balanced;
   }
+
+  /// Progressive blur along app bars and scroll edges.
+  static bool get hazeScrollEdge =>
+      _setting.get(SettingBoxKey.hazeScrollEdge, defaultValue: true);
+
+  /// Glass on dialogs, bottom sheets and other floating surfaces.
+  static bool get hazeDialogs =>
+      _setting.get(SettingBoxKey.hazeDialogs, defaultValue: true);
+
+  /// Material 3 Expressive page transitions + predictive back gesture.
+  static bool get hotTransitions =>
+      _setting.get(SettingBoxKey.hotTransitions, defaultValue: true);
+
+  /// Video card -> player container transform.
+  static bool get cardZoomTransition =>
+      _setting.get(SettingBoxKey.cardZoomTransition, defaultValue: true);
+
+  /// FlClash style spring entrance motion for floating surfaces.
+  static bool get hotMotion =>
+      _setting.get(SettingBoxKey.hotMotion, defaultValue: true);
 
   static bool get antiGoodsDyn =>
       _setting.get(SettingBoxKey.antiGoodsDyn, defaultValue: false);

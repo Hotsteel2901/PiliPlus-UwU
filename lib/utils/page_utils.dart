@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:PiliPlus/common/transition/page_transitions.dart';
 import 'package:PiliPlus/common/widgets/fractionally_sized_box.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/gallery_viewer.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/hero_dialog_route.dart';
@@ -534,7 +535,7 @@ abstract final class PageUtils {
     bool off = false,
     bool isVertical = false,
     Dimension? dimension,
-    String? cardHeroTag,
+    CardZoomOrigin? cardZoom,
   }) {
     final arguments = {
       'aid': aid ?? IdUtils.bv2av(bvid!),
@@ -549,7 +550,7 @@ abstract final class PageUtils {
       'videoType': videoType,
       'isVertical': dimension?.isVertical ?? isVertical,
       'heroTag': Utils.makeHeroTag(cid),
-      'cardHeroTag': ?cardHeroTag,
+      'cardZoom': ?cardZoom,
       ...?extraArguments,
     };
     return PageUtils.toDupNamed('/videoV', arguments: arguments, off: off);

@@ -17,6 +17,8 @@
 
 import 'dart:ui' show ImageFilter;
 
+import 'package:PiliPlus/common/m3e/m3e.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Pops its child in with a spring: it scales up from [beginScale] while
@@ -29,6 +31,7 @@ class Materialize extends StatefulWidget {
   const Materialize({
     super.key,
     this.child,
+    // Matches the length of `m3ePopSpring` from the patched `material_ui`.
     this.duration = const Duration(milliseconds: 480),
     this.beginScale = 0.86,
     this.beginBlur = 10,
@@ -77,7 +80,7 @@ class _MaterializeState extends State<Materialize>
     final child = widget.child ?? const SizedBox.shrink();
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (!widget.animate || reduceMotion) {
+    if (!widget.animate || reduceMotion || !Pref.hotMotion) {
       return child;
     }
     final curve = widget.curve ?? m3ePopSpring;
@@ -86,13 +89,13 @@ class _MaterializeState extends State<Materialize>
       builder: (context, child) {
         final double raw = _controller.value.clamp(0.0, 1.0);
         final double spring = curve.transform(raw);
-        final double reveal = spring.clamp(0.0, 1.0);
+        final double unblur = (1 - spring).clamp(0.0, 1.0);
         return Opacity(
-          opacity: Curves.easeOutCubic.transform(raw),
+          opacity: M3EMotion.emphasizedDecelerate.transform(raw),
           child: ImageFiltered(
             imageFilter: ImageFilter.blur(
-              sigmaX: widget.beginBlur * (1 - reveal),
-              sigmaY: widget.beginBlur * (1 - reveal),
+              sigmaX: widget.beginBlur * unblur,
+              sigmaY: widget.beginBlur * unblur,
             ),
             child: Transform.scale(
               scale: widget.beginScale + (1 - widget.beginScale) * spring,

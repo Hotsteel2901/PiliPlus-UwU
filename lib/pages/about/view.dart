@@ -183,7 +183,7 @@ Commit Hash: ${BuildConfig.commitHash}''',
             onTap: () => showDialog(
               context: context,
               builder: (context) => AlertDialog(
-                title: const Text('二改声明'),
+                title: const Text('Fork 声明'),
                 content: const SingleChildScrollView(
                   child: Text(kHotDeclaration, style: TextStyle(height: 1.6)),
                 ),
@@ -196,9 +196,9 @@ Commit Hash: ${BuildConfig.commitHash}''',
               ),
             ),
             leading: const Icon(Icons.local_fire_department_outlined),
-            title: const Text('二改声明'),
+            title: const Text('Fork 声明'),
             subtitle: Text(
-              '二改作者：GitHub @Hotsteel2901',
+              'Fork 作者：GitHub @Hotsteel2901',
               style: subTitleStyle,
             ),
             trailing: Icon(Icons.arrow_forward, size: 16, color: outline),

@@ -20,6 +20,7 @@ import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
+import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/mobile_observer.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -313,6 +314,13 @@ class _MainAppState extends PopScopeState<MainApp>
     }
   }
 
+  void _onSelect(int value) {
+    if (value != _mainController.selectedIndex.value) {
+      feedBack();
+    }
+    _mainController.setIndex(value);
+  }
+
   Widget? get _bottomNav {
     Widget? bottomNav;
     if (_mainController.navigationBars.length > 1) {
@@ -338,7 +346,7 @@ class _MainAppState extends PopScopeState<MainApp>
             NavigationBar(
               backgroundColor: Colors.transparent,
               maintainBottomViewPadding: true,
-              onDestinationSelected: _mainController.setIndex,
+              onDestinationSelected: _onSelect,
               selectedIndex: _mainController.selectedIndex.value,
               destinations: _mainController.navigationBars
                   .map(
@@ -357,7 +365,7 @@ class _MainAppState extends PopScopeState<MainApp>
           () => _hazeWrap(
             BottomNavigationBar(
               currentIndex: _mainController.selectedIndex.value,
-              onTap: _mainController.setIndex,
+              onTap: _onSelect,
               iconSize: 16,
               selectedFontSize: 12,
               unselectedFontSize: 12,
@@ -438,27 +446,36 @@ class _MainAppState extends PopScopeState<MainApp>
             child: DrawerTheme(
               data: DrawerThemeData(width: 130 + _padding.left),
               child: Obx(
-                () => NavigationDrawer(
-                  /// apply `lib/scripts/navigation_drawer.patch`
-                  flex: 5,
-                  backgroundColor: Colors.transparent,
-                  onDestinationSelected: _mainController.setIndex,
-                  selectedIndex: _mainController.selectedIndex.value,
-                  header: Expanded(flex: 4, child: userAndSearchVertical()),
-                  tilePadding: const .symmetric(vertical: 5, horizontal: 12),
-                  indicatorShape: M3EShape.lg,
-                  children: _mainController.navigationBars
-                      .map(
-                        (e) => NavigationDrawerDestination(
-                          label: Text(e.label),
-                          icon: _buildIcon(type: e),
-                          selectedIcon: _buildIcon(
-                            type: e,
-                            selected: true,
+                () => HazeGlass(
+                  shape: M3EShape.of(
+                    const BorderRadius.horizontal(
+                      right: Radius.circular(M3ECorner.xxl),
+                    ),
+                  ),
+                  tint: _colorScheme.surfaceContainerLow,
+                  tintOpacity: 0.74,
+                  child: NavigationDrawer(
+                    /// apply `lib/scripts/navigation_drawer.patch`
+                    flex: 5,
+                    backgroundColor: Colors.transparent,
+                    onDestinationSelected: _onSelect,
+                    selectedIndex: _mainController.selectedIndex.value,
+                    header: Expanded(flex: 4, child: userAndSearchVertical()),
+                    tilePadding: const .symmetric(vertical: 5, horizontal: 12),
+                    indicatorShape: M3EShape.lg,
+                    children: _mainController.navigationBars
+                        .map(
+                          (e) => NavigationDrawerDestination(
+                            label: Text(e.label),
+                            icon: _buildIcon(type: e),
+                            selectedIcon: _buildIcon(
+                              type: e,
+                              selected: true,
+                            ),
                           ),
-                        ),
-                      )
-                      .toList(),
+                        )
+                        .toList(),
+                  ),
                 ),
               ),
             ),
@@ -466,22 +483,31 @@ class _MainAppState extends PopScopeState<MainApp>
         );
       }
       return Obx(
-        () => NavigationRail(
-          groupAlignment: 0.5,
-          labelType: .selected,
-          leading: userAndSearchVertical(),
-          backgroundColor: Colors.transparent,
-          onDestinationSelected: _mainController.setIndex,
-          selectedIndex: _mainController.selectedIndex.value,
-          destinations: _mainController.navigationBars
-              .map(
-                (e) => NavigationRailDestination(
-                  label: Text(e.label),
-                  icon: _buildIcon(type: e),
-                  selectedIcon: _buildIcon(type: e, selected: true),
-                ),
-              )
-              .toList(),
+        () => HazeGlass(
+          shape: M3EShape.of(
+            const BorderRadius.horizontal(
+              right: Radius.circular(M3ECorner.xxl),
+            ),
+          ),
+          tint: _colorScheme.surfaceContainerLow,
+          tintOpacity: 0.74,
+          child: NavigationRail(
+            groupAlignment: 0.5,
+            labelType: .selected,
+            leading: userAndSearchVertical(),
+            backgroundColor: Colors.transparent,
+            onDestinationSelected: _onSelect,
+            selectedIndex: _mainController.selectedIndex.value,
+            destinations: _mainController.navigationBars
+                .map(
+                  (e) => NavigationRailDestination(
+                    label: Text(e.label),
+                    icon: _buildIcon(type: e),
+                    selectedIcon: _buildIcon(type: e, selected: true),
+                  ),
+                )
+                .toList(),
+          ),
         ),
       );
     }

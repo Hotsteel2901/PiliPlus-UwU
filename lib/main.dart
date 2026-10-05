@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:PiliPlus/build_config.dart';
 import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/transition/page_transitions.dart';
 import 'package:PiliPlus/common/widgets/back_detector.dart';
 import 'package:PiliPlus/common/widgets/custom_toast.dart';
 import 'package:PiliPlus/common/widgets/haze/haze_config.dart';
@@ -114,6 +115,10 @@ void main() async {
     ..lazyPut(AccountService.new)
     ..lazyPut(DownloadService.new);
   HttpOverrides.global = _CustomHttpOverrides();
+
+  // Material 3 Expressive page transitions, predictive back and the video card
+  // container transform (HOT fork).
+  HotPageTransitions.install();
 
   if (PlatformUtils.isMobile) {
     if (Platform.isAndroid) MaxScreenSize.init();
@@ -341,10 +346,23 @@ class MyApp extends StatelessWidget {
         child: child!,
       );
     }
+    final hazeQuality = Pref.hazeQuality;
+    final reduceTransparency = mediaQuery.highContrast;
     child = HazeConfig(
       enabled: Pref.enableHaze,
-      quality: Pref.hazeQuality,
-      reduceTransparency: mediaQuery.highContrast,
+      quality: hazeQuality,
+      reduceTransparency: reduceTransparency,
+      child: child,
+    );
+    // Glass for the components owned by material_ui (app bars, dialogs and
+    // bottom sheets), so Haze reaches the whole UI and not just the app's own
+    // navigation surfaces.
+    child = M3EGlassScope(
+      enabled: Pref.enableHaze && !reduceTransparency,
+      appBar: Pref.hazeScrollEdge,
+      overlay: Pref.hazeDialogs,
+      blur: 32 * hazeQuality.sigmaScale,
+      tintOpacity: 0.56,
       child: child,
     );
     if (PlatformUtils.isDesktop) {

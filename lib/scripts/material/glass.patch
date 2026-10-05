@@ -1,0 +1,342 @@
+diff --git a/lib/material_ui.dart b/lib/material_ui.dart
+index 48270f2..8d1d953 100644
+--- a/lib/material_ui.dart
++++ b/lib/material_ui.dart
+@@ -130,6 +130,7 @@ export 'src/menu_theme.dart';
+ export 'src/mergeable_material.dart';
+ export 'src/migration_utility.dart';
+ export 'src/m3e_motion.dart';
++export 'src/m3e_glass.dart';
+ export 'src/motion.dart';
+ export 'src/navigation_bar.dart';
+ export 'src/navigation_bar_theme.dart';
+diff --git a/lib/src/app_bar.dart b/lib/src/app_bar.dart
+index 9f43446..c458995 100644
+--- a/lib/src/app_bar.dart
++++ b/lib/src/app_bar.dart
+@@ -28,6 +28,7 @@ import 'flexible_space_bar.dart';
+ import 'icon_button.dart';
+ import 'icon_button_theme.dart';
+ import 'icons.dart';
++import 'm3e_glass.dart';
+ import 'material.dart';
+ import 'scaffold.dart';
+ import 'tabs.dart';
+@@ -1265,12 +1266,20 @@ class _AppBarState extends State<AppBar> {
+           theme.useMaterial3 ? const Color(0x00000000) : null,
+         );
+ 
++    final bool useGlass =
++        (M3EGlassScope.maybeOf(context)?.enabled ?? false) &&
++        (M3EGlassScope.maybeOf(context)?.appBar ?? false) &&
++        !widget.forceMaterialTransparency &&
++        effectiveBackgroundColor.a == 1.0;
++
+     return Semantics(
+       container: true,
+       child: AnnotatedRegion<SystemUiOverlayStyle>(
+         value: overlayStyle,
+         child: Material(
+-          color: theme.useMaterial3 ? effectiveBackgroundColor : backgroundColor,
++          color: useGlass
++              ? const Color(0x00000000)
++              : (theme.useMaterial3 ? effectiveBackgroundColor : backgroundColor),
+           elevation: effectiveElevation,
+           type: widget.forceMaterialTransparency ? MaterialType.transparency : MaterialType.canvas,
+           shadowColor: widget.shadowColor ?? appBarTheme.shadowColor ?? defaults.shadowColor,
+@@ -1284,7 +1293,12 @@ class _AppBarState extends State<AppBar> {
+               (theme.useMaterial3 ? theme.colorScheme.surfaceTint : null),
+           shape: widget.shape ?? appBarTheme.shape ?? defaults.shape,
+           animateColor: widget.animateColor,
+-          child: Semantics(explicitChildNodes: true, child: appBar),
++          child: useGlass
++              ? M3EGlassSurface(
++                  shape: widget.shape ?? appBarTheme.shape ?? defaults.shape,
++                  child: Semantics(explicitChildNodes: true, child: appBar),
++                )
++              : Semantics(explicitChildNodes: true, child: appBar),
+         ),
+       ),
+     );
+diff --git a/lib/src/bottom_sheet.dart b/lib/src/bottom_sheet.dart
+index 21fd465..769260d 100644
+--- a/lib/src/bottom_sheet.dart
++++ b/lib/src/bottom_sheet.dart
+@@ -19,6 +19,7 @@ import 'colors.dart';
+ import 'constants.dart';
+ import 'debug.dart';
+ import 'm3e_motion.dart';
++import 'm3e_glass.dart';
+ import 'material.dart';
+ import 'material_localizations.dart';
+ import 'scaffold.dart';
+@@ -391,29 +392,37 @@ class _BottomSheetState<T extends BottomSheet> extends State<T> {
+       }
+     }
+ 
++    final M3EGlassScope? glass = M3EGlassScope.maybeOf(context);
++    final bool useGlass = (glass?.enabled ?? false) && (glass?.overlay ?? false) && color != null && color.a == 1.0;
++    final Widget sheetContent = NotificationListener<DraggableScrollableNotification>(
++      onNotification: extentChanged,
++      child: !showDragHandle
++          ? widget.builder(context)
++          : Stack(
++              alignment: Alignment.topCenter,
++              children: <Widget>[
++                dragHandle!,
++                Padding(
++                  padding: const EdgeInsets.only(top: kMinInteractiveDimension),
++                  child: widget.builder(context),
++                ),
++              ],
++            ),
++    );
+     Widget bottomSheet = Material(
+       key: _childKey,
+-      color: color,
++      color: useGlass ? const Color(0x00000000) : color,
+       elevation: elevation,
+       surfaceTintColor: surfaceTintColor,
+       shadowColor: shadowColor,
+       shape: shape,
+       clipBehavior: clipBehavior,
+-      child: NotificationListener<DraggableScrollableNotification>(
+-        onNotification: extentChanged,
+-        child: !showDragHandle
+-            ? widget.builder(context)
+-            : Stack(
+-                alignment: Alignment.topCenter,
+-                children: <Widget>[
+-                  dragHandle!,
+-                  Padding(
+-                    padding: const EdgeInsets.only(top: kMinInteractiveDimension),
+-                    child: widget.builder(context),
+-                  ),
+-                ],
+-              ),
+-      ),
++      child: useGlass
++          ? M3EGlassSurface(
++              shape: shape ?? const RoundedRectangleBorder(),
++              child: sheetContent,
++            )
++          : sheetContent,
+     );
+ 
+     if (constraints != null) {
+diff --git a/lib/src/dialog.dart b/lib/src/dialog.dart
+index b9c9201..0c8544f 100644
+--- a/lib/src/dialog.dart
++++ b/lib/src/dialog.dart
+@@ -21,6 +21,7 @@ import 'debug.dart';
+ import 'dialog_theme.dart';
+ import 'ink_well.dart';
+ import 'm3e_motion.dart';
++import 'm3e_glass.dart';
+ import 'material.dart';
+ import 'material_localizations.dart';
+ import 'text_theme.dart';
+@@ -275,12 +276,27 @@ class Dialog extends StatelessWidget {
+     final BoxConstraints boxConstraints =
+         constraints ?? dialogTheme.constraints ?? const BoxConstraints(minWidth: 280.0);
+ 
++    final Color? dialogColor =
++        backgroundColor ?? dialogTheme.backgroundColor ?? defaults.backgroundColor;
++    final ShapeBorder dialogShape = shape ?? dialogTheme.shape ?? defaults.shape!;
++    final M3EGlassScope? glass = M3EGlassScope.maybeOf(context);
++    final bool useGlass =
++        (glass?.enabled ?? false) &&
++        (glass?.overlay ?? false) &&
++        dialogColor != null &&
++        dialogColor.a == 1.0;
++
+     Widget dialogChild;
+ 
+     if (_fullscreen) {
+       dialogChild = Material(
+-        color: backgroundColor ?? dialogTheme.backgroundColor ?? defaults.backgroundColor,
+-        child: child,
++        color: useGlass ? const Color(0x00000000) : dialogColor,
++        child: useGlass
++            ? M3EGlassSurface(
++                shape: dialogShape,
++                child: child ?? const SizedBox.shrink(),
++              )
++            : child,
+       );
+     } else {
+       dialogChild = Align(
+@@ -288,15 +304,20 @@ class Dialog extends StatelessWidget {
+         child: ConstrainedBox(
+           constraints: boxConstraints,
+           child: Material(
+-            color: backgroundColor ?? dialogTheme.backgroundColor ?? defaults.backgroundColor,
++            color: useGlass ? const Color(0x00000000) : dialogColor,
+             elevation: elevation ?? dialogTheme.elevation ?? defaults.elevation!,
+             shadowColor: shadowColor ?? dialogTheme.shadowColor ?? defaults.shadowColor,
+             surfaceTintColor:
+                 surfaceTintColor ?? dialogTheme.surfaceTintColor ?? defaults.surfaceTintColor,
+-            shape: shape ?? dialogTheme.shape ?? defaults.shape!,
++            shape: dialogShape,
+             type: MaterialType.card,
+             clipBehavior: clipBehavior ?? dialogTheme.clipBehavior ?? defaults.clipBehavior!,
+-            child: child,
++            child: useGlass
++                ? M3EGlassSurface(
++                    shape: dialogShape,
++                    child: child ?? const SizedBox.shrink(),
++                  )
++                : child,
+           ),
+         ),
+       );
+diff --git a/lib/src/m3e_glass.dart b/lib/src/m3e_glass.dart
+new file mode 100644
+index 0000000..bb2dcda
+--- /dev/null
++++ b/lib/src/m3e_glass.dart
+@@ -0,0 +1,144 @@
++// Copyright 2014 The Flutter Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import 'dart:ui' show ImageFilter;
++
++import 'package:flutter/widgets.dart';
++
++import 'colors.dart';
++import 'theme.dart';
++
++/// Application wide configuration for the Material 3 Expressive glass surfaces
++/// painted by this package (app bars, dialogs, sheets...).
++///
++/// It lives next to [Theme] so the package's components can render frosted
++/// surfaces without depending on the host application. When no scope is
++/// installed, every surface keeps its stock, opaque rendering.
++class M3EGlassScope extends InheritedWidget {
++  /// Installs a glass configuration for the subtree.
++  const M3EGlassScope({
++    super.key,
++    required this.enabled,
++    this.appBar = true,
++    this.overlay = true,
++    this.blur = 28,
++    this.tint,
++    this.tintOpacity = 0.55,
++    this.highlight = true,
++    required super.child,
++  });
++
++  /// Whether glass may be painted at all.
++  final bool enabled;
++
++  /// Whether app bars paint a frosted background.
++  final bool appBar;
++
++  /// Whether dialogs and bottom sheets paint a frosted surface.
++  final bool overlay;
++
++  /// Peak blur radius in logical pixels.
++  final double blur;
++
++  /// Base tint; defaults to `surfaceContainerHigh` of the current theme.
++  final Color? tint;
++
++  /// Tint opacity applied over the blur.
++  final double tintOpacity;
++
++  /// Paints a soft specular highlight over the surface.
++  final bool highlight;
++
++  static M3EGlassScope? maybeOf(BuildContext context) =>
++      context.dependOnInheritedWidgetOfExactType<M3EGlassScope>();
++
++  @override
++  bool updateShouldNotify(M3EGlassScope oldWidget) =>
++      enabled != oldWidget.enabled ||
++      appBar != oldWidget.appBar ||
++      overlay != oldWidget.overlay ||
++      blur != oldWidget.blur ||
++      tint != oldWidget.tint ||
++      tintOpacity != oldWidget.tintOpacity ||
++      highlight != oldWidget.highlight;
++}
++
++/// A frosted surface: blurs whatever is painted behind it, tints it with the
++/// current surface tone and adds a soft highlight, following [shape].
++///
++/// Degrades to its child untouched when no enabled [M3EGlassScope] is in scope,
++/// so contrast never breaks.
++class M3EGlassSurface extends StatelessWidget {
++  /// Wraps [child] in a frosted, backdrop-blurred surface.
++  const M3EGlassSurface({
++    super.key,
++    required this.child,
++    this.shape,
++    this.blur,
++    this.tint,
++    this.tintOpacity,
++  });
++
++  final Widget child;
++  final ShapeBorder? shape;
++  final double? blur;
++  final Color? tint;
++  final double? tintOpacity;
++
++  @override
++  Widget build(BuildContext context) {
++    final scope = M3EGlassScope.maybeOf(context);
++    if (scope == null || !scope.enabled) {
++      return child;
++    }
++    final theme = Theme.of(context);
++    final isDark = theme.brightness == Brightness.dark;
++    final surfaceShape = shape ?? const RoundedRectangleBorder();
++    final sigma = blur ?? scope.blur;
++    final base = tint ?? scope.tint ?? theme.colorScheme.surfaceContainerHigh;
++    final tintColor = base.withValues(alpha: tintOpacity ?? scope.tintOpacity);
++    final highlightBase = isDark ? Colors.white : Colors.white;
++
++    return Stack(
++      fit: StackFit.passthrough,
++      children: <Widget>[
++        Positioned.fill(
++          child: ClipPath(
++            clipper: ShapeBorderClipper(shape: surfaceShape),
++            child: BackdropFilter(
++              filter: ImageFilter.blur(
++                sigmaX: sigma,
++                sigmaY: sigma,
++                tileMode: TileMode.mirror,
++              ),
++              child: ColoredBox(
++                color: tintColor,
++                child: const SizedBox.expand(),
++              ),
++            ),
++          ),
++        ),
++        if (scope.highlight)
++          Positioned.fill(
++            child: IgnorePointer(
++              child: DecoratedBox(
++                decoration: ShapeDecoration(
++                  shape: surfaceShape,
++                  gradient: LinearGradient(
++                    begin: Alignment.topLeft,
++                    end: Alignment.bottomRight,
++                    colors: <Color>[
++                      highlightBase.withValues(alpha: isDark ? 0.06 : 0.24),
++                      highlightBase.withValues(alpha: 0.0),
++                    ],
++                  ),
++                ),
++              ),
++            ),
++          ),
++        child,
++      ],
++    );
++  }
++}

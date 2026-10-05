@@ -49,7 +49,6 @@ import 'package:PiliPlus/pages/video/view_point/view.dart';
 import 'package:PiliPlus/pages/video/widgets/header_control.dart';
 import 'package:PiliPlus/pages/video/widgets/intro_layout.dart';
 import 'package:PiliPlus/pages/video/widgets/player_focus.dart';
-import 'package:PiliPlus/common/widgets/video_hero.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
@@ -1615,26 +1614,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         ),
       ],
     );
-    final cardHeroTag = Get.arguments?['cardHeroTag'];
-    if (cardHeroTag is! String) {
-      return player;
-    }
-    return Hero(
-      tag: cardHeroTag,
-      transitionOnUserGestures: true,
-      flightShuttleBuilder:
-          (
-            flightContext,
-            animation,
-            direction,
-            fromHeroContext,
-            toHeroContext,
-          ) => VideoHeroShuttle(
-            animation: animation,
-            cover: videoDetailController.cover.value,
-          ),
-      child: player,
-    );
+    return player;
   }
 
   Widget localIntroPanel({

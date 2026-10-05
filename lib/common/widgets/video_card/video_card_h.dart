@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/transition/page_transitions.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -33,8 +34,8 @@ class VideoCardH extends StatefulWidget {
 }
 
 class _VideoCardHState extends State<VideoCardH> {
-  /// Stable shared element tag: the card cover flies into the player and back.
-  late final String _cardHeroTag = 'video-card-${identityHashCode(this)}';
+  /// Measures the cover so the detail route can morph out of the card and back.
+  final GlobalKey _coverKey = GlobalKey();
 
   HorizontalVideoModel get videoItem => widget.videoItem;
 
@@ -43,6 +44,27 @@ class _VideoCardHState extends State<VideoCardH> {
   ValueChanged<int>? get onViewLater => widget.onViewLater;
 
   VoidCallback? get onRemove => widget.onRemove;
+
+  CardZoomOrigin? _cardZoom() {
+    final box = _coverKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      return null;
+    }
+    return CardZoomOrigin(
+      begin: box.localToGlobal(Offset.zero) & box.size,
+      cover: videoItem.cover,
+      resolveBegin: () {
+        if (!mounted) {
+          return null;
+        }
+        final box = _coverKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) {
+          return null;
+        }
+        return box.localToGlobal(Offset.zero) & box.size;
+      },
+    );
+  }
 
   void onLongPress() => imageSaveDialog(
     bvid: videoItem.bvid,
@@ -62,7 +84,13 @@ class _VideoCardHState extends State<VideoCardH> {
             onLongPress: onLongPress,
             onSecondaryTap: PlatformUtils.isMobile ? null : onLongPress,
             onTap:
-                onTap ?? () => pushVideoH(videoItem, cardHeroTag: _cardHeroTag),
+                onTap ??
+                () {
+                  if (!HotPageTransitions.claimTap()) {
+                    return;
+                  }
+                  pushVideoH(videoItem, cardZoom: _cardZoom());
+                },
             child: Padding(
               padding: const .symmetric(
                 horizontal: Style.safeSpace,
@@ -71,9 +99,8 @@ class _VideoCardHState extends State<VideoCardH> {
               child: Row(
                 crossAxisAlignment: .start,
                 children: [
-                  Hero(
-                    tag: _cardHeroTag,
-                    transitionOnUserGestures: true,
+                  KeyedSubtree(
+                    key: _coverKey,
                     child: AspectRatio(
                       aspectRatio: Style.aspectRatio,
                       child: LayoutBuilder(
@@ -239,7 +266,7 @@ class _VideoCardHState extends State<VideoCardH> {
 
 Future<void> pushVideoH(
   HorizontalVideoModel videoItem, {
-  String? cardHeroTag,
+  CardZoomOrigin? cardZoom,
 }) async {
   if (videoItem.isPugv ?? false) {
     PageUtils.viewPugv(seasonId: videoItem.seasonId);
@@ -277,7 +304,7 @@ Future<void> pushVideoH(
       cover: videoItem.cover,
       title: videoItem.title,
       dimension: dimension,
-      cardHeroTag: cardHeroTag,
+      cardZoom: cardZoom,
     );
   }
 }

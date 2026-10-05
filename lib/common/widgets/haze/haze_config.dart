@@ -15,13 +15,14 @@
  * along with PiliPlus.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'package:PiliPlus/models/common/enum_with_label.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Rendering budget of the Haze glass system.
 ///
 /// Mirrors Haze's performance modes: higher quality means more blur, more
 /// progressive-blur bands and more light on the glass.
-enum HazeQuality {
+enum HazeQuality with EnumWithLabel {
   quality(sigmaScale: 1.0, bandCount: 10),
   balanced(sigmaScale: 0.72, bandCount: 7),
   performance(sigmaScale: 0.45, bandCount: 4),
@@ -31,6 +32,14 @@ enum HazeQuality {
 
   final double sigmaScale;
   final int bandCount;
+
+  @override
+  String get label => switch (this) {
+    HazeQuality.quality => '高质量',
+    HazeQuality.balanced => '均衡',
+    HazeQuality.performance => '流畅',
+    HazeQuality.none => '关闭模糊',
+  };
 }
 
 /// App level configuration for the Haze glass system.

@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/m3e/shapes.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
@@ -56,7 +57,7 @@ class PBadge extends StatelessWidget {
         bgColor = theme.secondaryContainer.withValues(alpha: 0.5);
         color = theme.onSecondaryContainer;
       case PBadgeType.gray:
-        bgColor = Colors.black45;
+        bgColor = theme.scrim.withValues(alpha: 0.64);
         color = Colors.white;
       case PBadgeType.error:
         if (theme.isDark) {
@@ -83,16 +84,17 @@ class PBadge extends StatelessWidget {
     }
 
     late EdgeInsets paddingStyle = const .symmetric(vertical: 2, horizontal: 3);
-    final BorderRadius br = size == .small
-        ? const .all(.circular(3))
-        : const .all(.circular(4));
+    final RoundedSuperellipseBorder shape = M3EShape.all(
+      size == .small ? M3ECorner.xs : 6,
+    );
 
     Widget content = Container(
       padding: padding ?? paddingStyle,
-      decoration: BoxDecoration(
-        borderRadius: br,
+      decoration: ShapeDecoration(
+        shape: borderColor == Colors.transparent
+            ? shape
+            : shape.copyWith(side: BorderSide(color: borderColor)),
         color: bgColor,
-        border: .all(color: borderColor),
       ),
       child: Text(
         text!,

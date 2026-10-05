@@ -1,4 +1,6 @@
+import 'package:PiliPlus/common/widgets/haze/haze.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:material_ui/material_ui.dart';
 
@@ -20,6 +22,18 @@ class SimpleAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Widget bar = Pref.enableHaze && Pref.hazeScrollEdge
+        ? HazeProgressiveBlur(
+            edge: .top,
+            span: height,
+            sigma: 22,
+            tint: backgroundColor.withValues(alpha: 0.35),
+            child: SizedBox(height: height, width: .infinity),
+          )
+        : ColoredBox(
+            color: backgroundColor,
+            child: SizedBox(height: height, width: .infinity),
+          );
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarBrightness: statusBarBrightness,
@@ -29,10 +43,7 @@ class SimpleAppBar extends StatelessWidget {
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: brightness.reverse,
       ),
-      child: ColoredBox(
-        color: backgroundColor,
-        child: SizedBox(height: height, width: .infinity),
-      ),
+      child: bar,
     );
   }
 }

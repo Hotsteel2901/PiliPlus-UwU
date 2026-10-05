@@ -212,9 +212,12 @@ $TabsPatchMaterial = "lib/scripts/material/tabs.patch"
 # spring based entrance motion for dialogs, bottom sheets and popup menus
 $MotionPatchMaterial = "lib/scripts/material/motion.patch"
 
+# backdrop glass for app bars, dialogs and bottom sheets
+$GlassPatchMaterial = "lib/scripts/material/glass.patch"
+
 $patches_material = @($ModalBarrierPatchMaterial, $NavigationDrawerPatchMaterial, $PopupMenuPatchMaterial,
                     $FABPatchMaterial, $TextFieldPatchMaterial, $ScaffoldPatchMaterial, $RefreshIndicatorPatchMaterial,
-                    $TabsPatchMaterial, $MotionPatchMaterial)
+                    $TabsPatchMaterial, $MotionPatchMaterial, $GlassPatchMaterial)
 
 $PubCacheDir = "~/.pub-cache"
 

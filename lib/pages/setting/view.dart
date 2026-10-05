@@ -1,4 +1,6 @@
+import 'package:PiliPlus/common/m3e/shapes.dart';
 import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
+import 'package:PiliPlus/common/widgets/haze/haze.dart';
 import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/http/login.dart';
@@ -70,7 +72,7 @@ class _SettingPageState extends State<SettingPage> {
     ),
     _SettingsModel(
       type: SettingType.hotSetting,
-      subtitle: '本次改版新增：Haze 玻璃、悬浮 Dock、控件动效、预测性返回等',
+      subtitle: '本次改版新增：M3E 转场、卡片缩放、Haze 玻璃、悬浮 Dock、控件动效、预测性返回等',
       icon: Icon(Icons.local_fire_department_outlined),
     ),
     _SettingsModel(
@@ -310,29 +312,34 @@ class _SettingPageState extends State<SettingPage> {
       right: 16,
       bottom: 8,
     ),
-    child: Material(
-      color: theme.colorScheme.onInverseSurface,
-      borderRadius: const BorderRadius.all(Radius.circular(50)),
-      child: InkWell(
-        onTap: () => Get.toNamed('/settingsSearch'),
+    child: HazeGlass(
+      shape: M3EShape.full,
+      tint: theme.colorScheme.surfaceContainerHigh,
+      tintOpacity: 0.72,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: const BorderRadius.all(Radius.circular(50)),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  size: 18,
-                  applyTextScaling: true,
-                  Icons.search,
-                ),
-                Text(
-                  ' 搜索',
-                  style: TextStyle(height: 1),
-                  strutStyle: StrutStyle(height: 1, leading: 0),
-                ),
-              ],
+        child: InkWell(
+          onTap: () => Get.toNamed('/settingsSearch'),
+          borderRadius: const BorderRadius.all(Radius.circular(50)),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    size: 18,
+                    applyTextScaling: true,
+                    Icons.search,
+                  ),
+                  Text(
+                    ' 搜索',
+                    style: TextStyle(height: 1),
+                    strutStyle: StrutStyle(height: 1, leading: 0),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

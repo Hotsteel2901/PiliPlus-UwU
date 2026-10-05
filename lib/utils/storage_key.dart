@@ -241,7 +241,13 @@ abstract final class SettingBoxKey {
       liveCdnUrl = 'liveCdnUrl',
       saveReply = 'saveReply',
       appFont = 'appFont',
-      enableHaze = 'enableHaze';
+      enableHaze = 'enableHaze',
+      hotTransitions = 'hotTransitions',
+      cardZoomTransition = 'cardZoomTransition',
+      hazeQuality = 'hazeQuality',
+      hazeScrollEdge = 'hazeScrollEdge',
+      hazeDialogs = 'hazeDialogs',
+      hotMotion = 'hotMotion';
 }
 
 abstract final class LocalCacheKey {

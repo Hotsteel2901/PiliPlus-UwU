@@ -1,12 +1,113 @@
+diff --git a/lib/get_navigation/get_navigation.dart b/lib/get_navigation/get_navigation.dart
+index dc535f33..d3543108 100644
+--- a/lib/get_navigation/get_navigation.dart
++++ b/lib/get_navigation/get_navigation.dart
+@@ -11,6 +11,7 @@ export 'src/root/internacionalization.dart';
+ export 'src/root/root_controller.dart';
+ export 'src/routes/default_route.dart';
+ export 'src/routes/get_route.dart';
++export 'src/routes/get_transition_mixin.dart';
+ export 'src/routes/observers/route_observer.dart';
+ export 'src/routes/route_middleware.dart';
+ export 'src/routes/transitions_type.dart';
 diff --git a/lib/get_navigation/src/routes/get_transition_mixin.dart b/lib/get_navigation/src/routes/get_transition_mixin.dart
-index b916bb47..fe1e210a 100644
+index b916bb47..ebfab789 100644
 --- a/lib/get_navigation/src/routes/get_transition_mixin.dart
 +++ b/lib/get_navigation/src/routes/get_transition_mixin.dart
-@@ -139,7 +139,7 @@ mixin GetPageRouteTransitionMixin<T> on PageRoute<T> {
+@@ -7,6 +7,35 @@ import 'package:get/get_navigation/src/routes/default_transitions.dart';
+ import 'package:get/get_navigation/src/routes/shared_axis_transition.dart';
+ import 'package:material_ui/material_ui.dart';
+ 
++/// Signature of a route transition builder supplied by the host application.
++typedef GetNativeTransitionBuilder =
++    Widget Function(
++      PageRoute<dynamic> route,
++      BuildContext context,
++      Animation<double> animation,
++      Animation<double> secondaryAnimation,
++      Widget child,
++    );
++
++/// Host application hook that replaces the stock page transition used by the
++/// [Transition.native] (Android/desktop) branch of [GetPageRouteTransitionMixin].
++///
++/// GetX routes do not expose per-route transition builders, so this small,
++/// optional indirection lets an application install its own Material 3
++/// Expressive, predictive-back aware transition without forking every route.
++/// When none of these members are set the stock behaviour is kept untouched.
++abstract final class GetNativeTransition {
++  /// Replaces `PredictiveBackPageTransitionsBuilder` on non Apple platforms.
++  static GetNativeTransitionBuilder? builder;
++
++  /// Transition delegated to the route below a native transition, which also
++  /// enables the outgoing route to animate while the incoming one plays.
++  static DelegatedTransitionBuilder? delegatedTransition;
++
++  /// Per route duration override.
++  static Duration? Function(PageRoute<dynamic> route)? duration;
++}
++
+ /// [MaterialRouteTransitionMixin]
+ mixin GetPageRouteTransitionMixin<T> on PageRoute<T> {
+   /// Builds the primary contents of the route.
+@@ -14,7 +43,9 @@ mixin GetPageRouteTransitionMixin<T> on PageRoute<T> {
+   Widget buildContent(BuildContext context);
+ 
+   @override
+-  Duration get transitionDuration => const Duration(milliseconds: 300);
++  Duration get transitionDuration =>
++      GetNativeTransition.duration?.call(this) ??
++      const Duration(milliseconds: 300);
+ 
+   // The transitionDuration is used to create the AnimationController which is only
+   // built once, so when page transition builder is updated and transitionDuration
+@@ -43,14 +74,22 @@ mixin GetPageRouteTransitionMixin<T> on PageRoute<T> {
+   String? get barrierLabel => null;
+ 
+   @override
+-  DelegatedTransitionBuilder? get delegatedTransition =>
+-      switch (Get.defaultTransition) {
+-        Transition.native || Transition.zoom => null,
+-        Transition.cupertino ||
+-        Transition.cupertinoDialog =>
+-          CupertinoPageTransition.delegatedTransition,
+-        _ => _delegatedTransition
+-      };
++  DelegatedTransitionBuilder? get delegatedTransition {
++    switch (Get.defaultTransition) {
++      case Transition.native:
++        if (Platform.isIOS || Platform.isMacOS) {
++          return null;
++        }
++        return GetNativeTransition.delegatedTransition;
++      case Transition.zoom:
++        return null;
++      case Transition.cupertino:
++      case Transition.cupertinoDialog:
++        return CupertinoPageTransition.delegatedTransition;
++      default:
++        return _delegatedTransition;
++    }
++  }
+ 
+   static Widget? _delegatedTransition(
+     BuildContext context,
+@@ -139,7 +178,18 @@ mixin GetPageRouteTransitionMixin<T> on PageRoute<T> {
              child,
            );
          }
 -        return const ZoomPageTransitionsBuilder().buildTransitions(
++        final GetNativeTransitionBuilder? override =
++            GetNativeTransition.builder;
++        if (override != null) {
++          return override(
++            rawRoute,
++            context,
++            animation,
++            secondaryAnimation,
++            child,
++          );
++        }
 +        return const PredictiveBackPageTransitionsBuilder().buildTransitions(
            rawRoute,
            context,

@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/transition/page_transitions.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -38,14 +39,38 @@ class VideoCardV extends StatefulWidget {
 }
 
 class _VideoCardVState extends State<VideoCardV> {
-  /// Stable shared element tag: the card cover flies into the player and back.
-  late final String _cardHeroTag = 'video-card-${identityHashCode(this)}';
+  /// Measures the cover so the detail route can morph out of the card and back.
+  final GlobalKey _coverKey = GlobalKey();
 
   BaseRcmdVideoItemModel get videoItem => widget.videoItem;
 
   VoidCallback? get onRemove => widget.onRemove;
 
+  CardZoomOrigin? _cardZoom() {
+    final box = _coverKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      return null;
+    }
+    return CardZoomOrigin(
+      begin: box.localToGlobal(Offset.zero) & box.size,
+      cover: videoItem.cover,
+      resolveBegin: () {
+        if (!mounted) {
+          return null;
+        }
+        final box = _coverKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) {
+          return null;
+        }
+        return box.localToGlobal(Offset.zero) & box.size;
+      },
+    );
+  }
+
   Future<void> onPushDetail() async {
+    if (!HotPageTransitions.claimTap()) {
+      return;
+    }
     switch (videoItem.goto) {
       case 'bangumi':
         PageUtils.viewPgc(epId: videoItem.param!);
@@ -76,7 +101,7 @@ class _VideoCardVState extends State<VideoCardV> {
             title: videoItem.title,
             isVertical: isVertical,
             dimension: dimension,
-            cardHeroTag: _cardHeroTag,
+            cardZoom: _cardZoom(),
           );
         }
         break;
@@ -114,9 +139,8 @@ class _VideoCardVState extends State<VideoCardV> {
             child: Column(
               crossAxisAlignment: .start,
               children: [
-                Hero(
-                  tag: _cardHeroTag,
-                  transitionOnUserGestures: true,
+                KeyedSubtree(
+                  key: _coverKey,
                   child: AspectRatio(
                     aspectRatio: Style.aspectRatio,
                     child: LayoutBuilder(
