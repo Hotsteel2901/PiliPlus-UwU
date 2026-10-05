@@ -15,6 +15,13 @@
 
 <div align="center">
     <p>A third-party Bilibili client built with Flutter</p>
+    <p><b>⚠️ Modified fork notice</b>: This repository is a secondary modification of
+    <a href="https://github.com/bggRGjQaUbCoE/PiliPlus">bggRGjQaUbCoE/PiliPlus</a>
+    by GitHub <a href="https://github.com/Hotsteel2901">@Hotsteel2901</a>, adding
+    Material 3 Expressive, Haze glass, a FlClash style floating dock and motion,
+    shared element transitions and the predictive back gesture, all managed under
+    the "HOT" settings entry. Original copyright belongs to the upstream authors,
+    this fork stays GPL-3.0 and is for learning and personal use only.</p>
 
 <img src="assets/screenshots/510shots_so.png" width="32%" alt="PiliPlus mobile screenshot" />
 <img src="assets/screenshots/174shots_so.png" width="32%" alt="PiliPlus mobile screenshot" />

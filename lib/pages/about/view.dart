@@ -11,6 +11,7 @@ import 'package:PiliPlus/common/widgets/dialog/simple_dialog_option.dart';
 import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
 import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
 import 'package:PiliPlus/pages/mine/controller.dart';
+import 'package:PiliPlus/pages/setting/models/hot_settings.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
@@ -177,6 +178,30 @@ Commit Hash: ${BuildConfig.commitHash}''',
             leading: const Icon(Icons.code),
             title: const Text('Source Code'),
             subtitle: Text(Constants.sourceCodeUrl, style: subTitleStyle),
+          ),
+          ListTile(
+            onTap: () => showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('二改声明'),
+                content: const SingleChildScrollView(
+                  child: Text(kHotDeclaration, style: TextStyle(height: 1.6)),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: Get.back,
+                    child: const Text('知道了'),
+                  ),
+                ],
+              ),
+            ),
+            leading: const Icon(Icons.local_fire_department_outlined),
+            title: const Text('二改声明'),
+            subtitle: Text(
+              '二改作者：GitHub @Hotsteel2901',
+              style: subTitleStyle,
+            ),
+            trailing: Icon(Icons.arrow_forward, size: 16, color: outline),
           ),
           if (Platform.isAndroid)
             ListTile(

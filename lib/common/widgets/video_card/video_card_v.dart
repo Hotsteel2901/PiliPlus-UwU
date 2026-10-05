@@ -20,7 +20,7 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 // 视频卡片 - 垂直布局
-class VideoCardV extends StatelessWidget {
+class VideoCardV extends StatefulWidget {
   final BaseRcmdVideoItemModel videoItem;
   final VoidCallback? onRemove;
 
@@ -29,6 +29,21 @@ class VideoCardV extends StatelessWidget {
     required this.videoItem,
     this.onRemove,
   });
+
+  @override
+  State<VideoCardV> createState() => _VideoCardVState();
+
+  static final shortFormat = DateFormat('M-d');
+  static final longFormat = DateFormat('yy-M-d');
+}
+
+class _VideoCardVState extends State<VideoCardV> {
+  /// Stable shared element tag: the card cover flies into the player and back.
+  late final String _cardHeroTag = 'video-card-${identityHashCode(this)}';
+
+  BaseRcmdVideoItemModel get videoItem => widget.videoItem;
+
+  VoidCallback? get onRemove => widget.onRemove;
 
   Future<void> onPushDetail() async {
     switch (videoItem.goto) {
@@ -61,6 +76,7 @@ class VideoCardV extends StatelessWidget {
             title: videoItem.title,
             isVertical: isVertical,
             dimension: dimension,
+            cardHeroTag: _cardHeroTag,
           );
         }
         break;
@@ -98,34 +114,38 @@ class VideoCardV extends StatelessWidget {
             child: Column(
               crossAxisAlignment: .start,
               children: [
-                AspectRatio(
-                  aspectRatio: Style.aspectRatio,
-                  child: LayoutBuilder(
-                    builder: (context, boxConstraints) {
-                      double maxWidth = boxConstraints.maxWidth;
-                      double maxHeight = boxConstraints.maxHeight;
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          NetworkImgLayer(
-                            src: videoItem.cover,
-                            width: maxWidth,
-                            height: maxHeight,
-                            borderRadius: const .vertical(top: .circular(12)),
-                          ),
-                          if (videoItem.duration > 0)
-                            PBadge(
-                              bottom: 6,
-                              right: 7,
-                              size: .small,
-                              type: .gray,
-                              text: DurationUtils.formatDuration(
-                                videoItem.duration,
-                              ),
+                Hero(
+                  tag: _cardHeroTag,
+                  transitionOnUserGestures: true,
+                  child: AspectRatio(
+                    aspectRatio: Style.aspectRatio,
+                    child: LayoutBuilder(
+                      builder: (context, boxConstraints) {
+                        double maxWidth = boxConstraints.maxWidth;
+                        double maxHeight = boxConstraints.maxHeight;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            NetworkImgLayer(
+                              src: videoItem.cover,
+                              width: maxWidth,
+                              height: maxHeight,
+                              borderRadius: const .vertical(top: .circular(12)),
                             ),
-                        ],
-                      );
-                    },
+                            if (videoItem.duration > 0)
+                              PBadge(
+                                bottom: 6,
+                                right: 7,
+                                size: .small,
+                                type: .gray,
+                                text: DurationUtils.formatDuration(
+                                  videoItem.duration,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
                 content(context),
@@ -222,9 +242,6 @@ class VideoCardV extends StatelessWidget {
     );
   }
 
-  static final shortFormat = DateFormat('M-d');
-  static final longFormat = DateFormat('yy-M-d');
-
   Widget videoStat(ThemeData theme) {
     return Row(
       children: [
@@ -250,8 +267,8 @@ class VideoCardV extends StatelessWidget {
               ),
               text: DateFormatUtils.dateFormat(
                 videoItem.pubdate,
-                short: shortFormat,
-                long: longFormat,
+                short: VideoCardV.shortFormat,
+                long: VideoCardV.longFormat,
               ),
             ),
           ),

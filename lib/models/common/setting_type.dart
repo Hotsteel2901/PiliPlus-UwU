@@ -1,4 +1,5 @@
 import 'package:PiliPlus/pages/setting/models/extra_settings.dart';
+import 'package:PiliPlus/pages/setting/models/hot_settings.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/models/play_settings.dart';
 import 'package:PiliPlus/pages/setting/models/privacy_settings.dart';
@@ -12,6 +13,7 @@ enum SettingType {
   videoSetting('音视频设置'),
   playSetting('播放器设置'),
   styleSetting('外观设置'),
+  hotSetting('HOT'),
   extraSetting('其它设置'),
   webdavSetting('WebDAV 设置'),
   about('关于'),
@@ -26,6 +28,7 @@ enum SettingType {
     .videoSetting => videoSettings,
     .playSetting => playSettings,
     .styleSetting => styleSettings,
+    .hotSetting => hotSettings,
     .extraSetting => extraSettings,
     _ => throw UnimplementedError(),
   };

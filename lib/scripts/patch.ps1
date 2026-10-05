@@ -318,3 +318,31 @@ foreach ($patch in $patches_cupertino) {
         throw "$LASTEXITCODE"
     }
 }
+
+# predictive back page transitions on Android (getx native transition)
+$GetxMotionPatch = "lib/scripts/getx/get_transition.patch"
+
+Get-ChildItem -Path "$env:GITHUB_WORKSPACE/lib/scripts/getx" -Filter *.patch | ForEach-Object {
+    (Get-Content $_.FullName -Raw) -replace "`r`n", "`n" | 
+        Set-Content -NoNewline $_.FullName
+}
+
+$GetxDir = Get-ChildItem "$PubCacheDir/git" -Directory |
+    Where-Object { $_.Name -like "getx-*" } |
+    Select-Object -Last 1
+
+if (-not $GetxDir) {
+    throw "getx package not found in pub cache"
+}
+
+Write-Host "getx dir: $($GetxDir.FullName)"
+
+cd $GetxDir.FullName
+git reset --hard HEAD
+
+git apply "$env:GITHUB_WORKSPACE/$GetxMotionPatch"
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "$GetxMotionPatch applied"
+} else {
+    throw "$GetxMotionPatch"
+}

@@ -69,6 +69,11 @@ class _SettingPageState extends State<SettingPage> {
       icon: Icon(Icons.style_outlined),
     ),
     _SettingsModel(
+      type: SettingType.hotSetting,
+      subtitle: '本次改版新增：Haze 玻璃、悬浮 Dock、控件动效、预测性返回等',
+      icon: Icon(Icons.local_fire_department_outlined),
+    ),
+    _SettingsModel(
       type: SettingType.extraSetting,
       subtitle: '震动、搜索、收藏、ai、评论、动态、代理、更新检查等',
       icon: Icon(Icons.extension_outlined),
@@ -119,6 +124,7 @@ class _SettingPageState extends State<SettingPage> {
                       .videoSetting ||
                       .playSetting ||
                       .styleSetting ||
+                      .hotSetting ||
                       .extraSetting => CommonSetting(
                         settingType: _type,
                         showAppBar: false,
@@ -150,6 +156,7 @@ class _SettingPageState extends State<SettingPage> {
           .videoSetting ||
           .playSetting ||
           .styleSetting ||
+          .hotSetting ||
           .extraSetting => CommonSetting(settingType: type),
           .webdavSetting => const WebDavSettingPage(),
           .about => const AboutPage(),

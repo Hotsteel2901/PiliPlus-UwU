@@ -15,6 +15,12 @@
 ![GitHub all releases](https://img.shields.io/github/downloads/bggRGjQaUbCoE/PiliPlus/total) 
 </div>
     <p>使用Flutter开发的BiliBili第三方客户端</p>
+    <p><b>⚠️ 二改声明</b>：本仓库是 PiliPlus 的二次修改版本，二改作者 GitHub
+    <a href="https://github.com/Hotsteel2901">@Hotsteel2901</a>，在上游
+    <a href="https://github.com/bggRGjQaUbCoE/PiliPlus">bggRGjQaUbCoE/PiliPlus</a>
+    基础上加入了 Material 3 Expressive、Haze 玻璃、FlClash 风格底栏与动效、共享元素转场、
+    预测性返回手势等改动，并集中在设置「HOT」中管理。原项目版权归上游作者所有，本项目同样以
+    GPL-3.0 开源，仅供学习与自用。</p>
     
 <img src="assets/screenshots/510shots_so.png" width="32%" alt="home" />
 <img src="assets/screenshots/174shots_so.png" width="32%" alt="home" />

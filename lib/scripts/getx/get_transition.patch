@@ -1,0 +1,13 @@
+diff --git a/lib/get_navigation/src/routes/get_transition_mixin.dart b/lib/get_navigation/src/routes/get_transition_mixin.dart
+index b916bb47..fe1e210a 100644
+--- a/lib/get_navigation/src/routes/get_transition_mixin.dart
++++ b/lib/get_navigation/src/routes/get_transition_mixin.dart
+@@ -139,7 +139,7 @@ mixin GetPageRouteTransitionMixin<T> on PageRoute<T> {
+             child,
+           );
+         }
+-        return const ZoomPageTransitionsBuilder().buildTransitions(
++        return const PredictiveBackPageTransitionsBuilder().buildTransitions(
+           rawRoute,
+           context,
+           animation,
