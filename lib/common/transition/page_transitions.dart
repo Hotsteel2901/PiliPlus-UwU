@@ -80,7 +80,7 @@ abstract final class HotPageTransitions {
   }
 
   /// Duration of the video card container transform.
-  static const Duration cardZoomDuration = Duration(milliseconds: 420);
+  static const Duration cardZoomDuration = Duration(milliseconds: 320);
 
   /// Only the app's own native page transition is ever replaced.
   static bool get _native => Pref.pageTransition == Transition.native;
@@ -111,8 +111,7 @@ abstract final class HotPageTransitions {
       return cardZoomDuration;
     }
     if (m3eEnabled) {
-      // Matches `m3eRouteSpring`.
-      return const Duration(milliseconds: 450);
+      return const Duration(milliseconds: 300);
     }
     // Everything else keeps the stock, snappy 300ms.
     return null;
@@ -130,34 +129,59 @@ abstract final class HotPageTransitions {
     if (cardZoomEnabled) {
       final origin = _cardZoomOf(route);
       if (origin != null) {
-        final zoom = _CardZoomTransition(
+        return PredictiveBackGestureHandler(
           route: route,
-          animation: animation,
-          origin: origin,
-          child: child,
+          builder: (context, gesturing, dragDx) => _CardZoomTransition(
+            route: route,
+            animation: animation,
+            origin: origin,
+            dragDx: dragDx,
+            child: child,
+          ),
         );
-        return predictiveBack
-            ? PredictiveBackGestureHandler(route: route, child: zoom)
-            : zoom;
       }
     }
     if (m3eEnabled) {
-      final float = _M3EFloatPageTransition(
+      return PredictiveBackGestureHandler(
         route: route,
-        animation: animation,
-        child: child,
+        builder: (context, gesturing, dragDx) => _M3EFloatPageTransition(
+          route: route,
+          animation: animation,
+          dragDx: dragDx,
+          child: child,
+        ),
       );
-      return predictiveBack
-          ? PredictiveBackGestureHandler(route: route, child: float)
-          : float;
     }
-    // Stock path. `PredictiveBackPageTransitionsBuilder` keeps the Android
-    // predictive back gesture (and brings its own observer); when predictive
-    // back is turned off we use the plain M3 fade-forwards transition.
-    return (predictiveBack
-            ? const PredictiveBackPageTransitionsBuilder()
-            : const FadeForwardsPageTransitionsBuilder())
-        .buildTransitions(route, context, animation, secondaryAnimation, child);
+    if (predictiveBack) {
+      // Stock push/pop, but a finger-following float while the gesture is
+      // dragging the page: the platform's AOSP variant barely moves the page,
+      // which is what feels sluggish and disconnected.
+      return PredictiveBackGestureHandler(
+        route: route,
+        builder: (context, gesturing, dragDx) => gesturing
+            ? _M3EFloatPageTransition(
+                route: route,
+                animation: animation,
+                dragDx: dragDx,
+                child: child,
+              )
+            : const FadeForwardsPageTransitionsBuilder().buildTransitions(
+                route,
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+              ),
+      );
+    }
+    // Predictive back turned off: plain M3 fade-forwards.
+    return const FadeForwardsPageTransitionsBuilder().buildTransitions(
+      route,
+      context,
+      animation,
+      secondaryAnimation,
+      child,
+    );
   }
 
   /// Animates the route below an incoming transition so the two routes move as
@@ -288,17 +312,32 @@ class _ContinuousBackProgressState extends State<ContinuousBackProgress> {
   Widget build(BuildContext context) => widget.builder(context, _progress);
 }
 
+/// Maps the linear "how far gone" progress (0 = present, 1 = dismissed) onto an
+/// eased one that always starts fast and settles gently.
+///
+/// The direction matters: on a pop the value runs 0 -> 1 and on a push 1 -> 0,
+/// so a single curve has to be mirrored. Applying one curve to both is what
+/// made the retract look "slow and then suddenly gone".
+double _easeGone(double gone, bool goingAway) => goingAway
+    ? Curves.easeOutCubic.transform(gone)
+    : Curves.easeInCubic.transform(gone);
+
 /// The default transition: the page floats up over the previous one, and on the
 /// way back it follows the finger and shrinks into a rounded card.
 class _M3EFloatPageTransition extends StatelessWidget {
   const _M3EFloatPageTransition({
     required this.route,
     required this.animation,
+    this.dragDx = 0,
     required this.child,
   });
 
   final PageRoute<dynamic> route;
   final Animation<double> animation;
+
+  /// The finger's horizontal travel during a back gesture, so the page can
+  /// follow it exactly.
+  final double dragDx;
   final Widget child;
 
   @override
@@ -323,12 +362,15 @@ class _M3EFloatPageTransition extends StatelessWidget {
           return child;
         }
         // While a back gesture is dragging the page it must track the finger
-        // 1:1; a timed push/pop gets the M3E spring curve so it feels organic
-        // instead of linear.
+        // 1:1; timed motion is eased so it starts fast and settles, whichever
+        // way it runs.
         final t = route.popGestureInProgress
             ? raw
-            : m3eRouteSpring.transform(raw);
-        final slide = size.width * 0.22 * direction * t;
+            : _easeGone(raw, animation.status == AnimationStatus.reverse);
+        // While the finger is on screen the page is glued to it, so it feels
+        // like it is physically dragged away.
+        final follow = route.popGestureInProgress && dragDx != 0;
+        final slide = follow ? dragDx : size.width * 0.22 * direction * t;
         final scale = 1 - 0.06 * t;
 
         return Stack(
@@ -386,7 +428,10 @@ class _M3EFloatSecondaryTransition extends StatelessWidget {
       builder: (context, reveal) {
         // reveal: 1 = fully visible, 0 = fully covered.
         final r = reveal.clamp(0.0, 1.0);
-        final covered = Curves.easeInOutCubicEmphasized.transform(1 - r);
+        final covered = _easeGone(
+          1 - r,
+          animation.status == AnimationStatus.forward,
+        );
         if (covered <= 0.001) {
           return child;
         }
@@ -429,12 +474,16 @@ class _CardZoomTransition extends StatelessWidget {
     required this.route,
     required this.animation,
     required this.origin,
+    this.dragDx = 0,
     required this.child,
   });
 
   final PageRoute<dynamic> route;
   final Animation<double> animation;
   final CardZoomOrigin origin;
+
+  /// The finger's horizontal travel during a back gesture.
+  final double dragDx;
   final Widget child;
 
   @override
@@ -445,20 +494,23 @@ class _CardZoomTransition extends StatelessWidget {
     return ContinuousBackProgress(
       animation: animation,
       builder: (context, progress) {
-        final raw = (1 - progress).clamp(0.0, 1.0);
+        final gone = progress.clamp(0.0, 1.0);
+        final open = 1 - gone;
         // Fully open: hand the page back untouched so its own `BackdropFilter`
         // glass renders normally (a permanent transform/clip layer breaks it).
-        if (raw >= 0.999) {
+        if (open >= 0.999) {
           return child;
         }
-        // 1:1 while the back gesture drags it, spring otherwise.
+        // 1:1 while the back gesture drags it; timed motion is eased so it
+        // starts fast and settles, whichever way it runs.
         final t = route.popGestureInProgress
-            ? raw
-            : m3ePopSpring.transform(raw);
+            ? open
+            : 1 - _easeGone(gone, animation.status == AnimationStatus.reverse);
         final end = Offset.zero & size;
         final live = origin.resolve();
         final begin = _clampToScreen(live ?? origin.begin, size);
-        final rect = Rect.lerp(begin, end, t)!;
+        final follow = route.popGestureInProgress && dragDx != 0;
+        final rect = Rect.lerp(begin, end, t)!.translate(follow ? dragDx : 0, 0);
         final scale = rect.width <= 0 ? 1.0 : rect.width / size.width;
         // Map the top of the player (roughly the status bar inset) onto the top
         // of the interpolated window, and let the rest of the page follow.
@@ -546,21 +598,29 @@ class PredictiveBackGestureHandler extends StatefulWidget {
   const PredictiveBackGestureHandler({
     super.key,
     required this.route,
-    required this.child,
+    required this.builder,
   });
 
   final PageRoute<dynamic> route;
-  final Widget child;
+
+  /// Built with `gesturing` true while the user is dragging the back gesture and
+  /// `dragDx` holding the finger's horizontal travel in logical pixels, so the
+  /// caller can move the page exactly with the finger.
+  final Widget Function(BuildContext context, bool gesturing, double dragDx)
+  builder;
 
   @override
   State<PredictiveBackGestureHandler> createState() =>
       _PredictiveBackGestureHandlerState();
 }
 
-class _PredictiveBackGestureHandlerState extends State<PredictiveBackGestureHandler>
-    with WidgetsBindingObserver {
-  bool get _isEnabled =>
-      widget.route.isCurrent && widget.route.popGestureEnabled;
+class _PredictiveBackGestureHandlerState
+    extends State<PredictiveBackGestureHandler> with WidgetsBindingObserver {
+  bool _gesturing = false;
+  double _dragDx = 0;
+  Offset? _dragStart;
+
+  bool get _isEnabled => widget.route.isCurrent && widget.route.popGestureEnabled;
 
   @override
   void initState() {
@@ -570,8 +630,29 @@ class _PredictiveBackGestureHandlerState extends State<PredictiveBackGestureHand
 
   @override
   void dispose() {
+    widget.route.animation?.removeStatusListener(_onStatus);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onStatus(AnimationStatus status) {
+    // A cancelled gesture animates back to `completed`; only then may we leave
+    // the finger-following transition, otherwise the page would pop mid flight.
+    if (status == AnimationStatus.completed && _gesturing) {
+      widget.route.animation?.removeStatusListener(_onStatus);
+      setState(() {
+        _gesturing = false;
+        _dragDx = 0;
+        _dragStart = null;
+      });
+    }
+  }
+
+  void _setGesturing(bool value) {
+    if (_gesturing == value) {
+      return;
+    }
+    setState(() => _gesturing = value);
   }
 
   @override
@@ -580,11 +661,19 @@ class _PredictiveBackGestureHandlerState extends State<PredictiveBackGestureHand
       return false;
     }
     widget.route.handleStartBackGesture(progress: 1 - backEvent.progress);
+    _dragStart = backEvent.touchOffset;
+    _dragDx = 0;
+    _setGesturing(true);
     return true;
   }
 
   @override
   void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
+    final start = _dragStart;
+    final current = backEvent.touchOffset;
+    if (start != null && current != null) {
+      _dragDx = current.dx - start.dx;
+    }
     widget.route.handleUpdateBackGestureProgress(
       progress: 1 - backEvent.progress,
     );
@@ -593,13 +682,25 @@ class _PredictiveBackGestureHandlerState extends State<PredictiveBackGestureHand
   @override
   void handleCancelBackGesture() {
     widget.route.handleCancelBackGesture();
+    // Fall back to the eased motion: the finger is gone.
+    setState(() {
+      _dragDx = 0;
+      _dragStart = null;
+    });
+    // Keep the finger-following transition until the route settles back.
+    widget.route.animation?.addStatusListener(_onStatus);
   }
 
   @override
   void handleCommitBackGesture() {
     widget.route.handleCommitBackGesture();
+    setState(() {
+      _dragDx = 0;
+      _dragStart = null;
+    });
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) =>
+      widget.builder(context, _gesturing, _dragDx);
 }
