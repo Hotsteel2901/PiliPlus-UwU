@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:PiliPlus/common/widgets/gesture/horizontal_drag_gesture_recognizer.dart'
     show deviceTouchSlop;
+import 'package:PiliPlus/common/widgets/haze/haze_config.dart';
 import 'package:PiliPlus/common/widgets/pair.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/bar_hide_type.dart';
@@ -519,6 +520,18 @@ abstract final class Pref {
 
   static bool get isPureBlackTheme =>
       _setting.get(SettingBoxKey.isPureBlackTheme, defaultValue: false);
+
+  /// Whether Haze glass (blur + tint) is painted on translucent surfaces.
+  static bool get enableHaze =>
+      _setting.get(SettingBoxKey.enableHaze, defaultValue: true);
+
+  /// Blur quality used by the Haze glass system.
+  static HazeQuality get hazeQuality {
+    if (PlatformUtils.isDesktop) {
+      return HazeQuality.quality;
+    }
+    return HazeQuality.balanced;
+  }
 
   static bool get antiGoodsDyn =>
       _setting.get(SettingBoxKey.antiGoodsDyn, defaultValue: false);

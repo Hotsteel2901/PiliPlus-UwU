@@ -240,7 +240,8 @@ abstract final class SettingBoxKey {
       reduceLuxColor = 'reduceLuxColor',
       liveCdnUrl = 'liveCdnUrl',
       saveReply = 'saveReply',
-      appFont = 'appFont';
+      appFont = 'appFont',
+      enableHaze = 'enableHaze';
 }
 
 abstract final class LocalCacheKey {

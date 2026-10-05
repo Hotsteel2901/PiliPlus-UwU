@@ -4,6 +4,7 @@ import 'package:PiliPlus/build_config.dart';
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/back_detector.dart';
 import 'package:PiliPlus/common/widgets/custom_toast.dart';
+import 'package:PiliPlus/common/widgets/haze/haze_config.dart';
 import 'package:PiliPlus/common/widgets/route_aware_mixin.dart';
 import 'package:PiliPlus/common/widgets/scale_app.dart';
 import 'package:PiliPlus/common/widgets/scroll_behavior.dart';
@@ -339,6 +340,12 @@ class MyApp extends StatelessWidget {
         child: child!,
       );
     }
+    child = HazeConfig(
+      enabled: Pref.enableHaze,
+      quality: Pref.hazeQuality,
+      reduceTransparency: mediaQuery.highContrast,
+      child: child,
+    );
     if (PlatformUtils.isDesktop) {
       return BackDetector(
         onBack: _onBack,

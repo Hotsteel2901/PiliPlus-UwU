@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/m3e/m3e.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/font_utils.dart';
@@ -159,12 +160,7 @@ abstract final class ThemeUtils {
           shadowColor: WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: ZoomPageTransitionsBuilder(),
-        },
-      ),
-    );
+    ).toM3ETheme();
     if (isDark && Pref.isPureBlackTheme) {
       return darkenTheme(theme);
     }
@@ -186,6 +182,7 @@ abstract final class ThemeUtils {
       dialogTheme: theme.dialogTheme.copyWith(backgroundColor: color),
       bottomSheetTheme: theme.bottomSheetTheme.copyWith(
         backgroundColor: color,
+        modalBackgroundColor: color,
       ),
       bottomNavigationBarTheme: theme.bottomNavigationBarTheme.copyWith(
         backgroundColor: color,

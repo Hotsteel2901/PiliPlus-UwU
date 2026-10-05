@@ -1,0 +1,271 @@
+diff --git a/lib/material_ui.dart b/lib/material_ui.dart
+index c884f04..48270f2 100644
+--- a/lib/material_ui.dart
++++ b/lib/material_ui.dart
+@@ -129,6 +129,7 @@ export 'src/menu_style.dart';
+ export 'src/menu_theme.dart';
+ export 'src/mergeable_material.dart';
+ export 'src/migration_utility.dart';
++export 'src/m3e_motion.dart';
+ export 'src/motion.dart';
+ export 'src/navigation_bar.dart';
+ export 'src/navigation_bar_theme.dart';
+diff --git a/lib/src/bottom_sheet.dart b/lib/src/bottom_sheet.dart
+index 0d5c5c9..21fd465 100644
+--- a/lib/src/bottom_sheet.dart
++++ b/lib/src/bottom_sheet.dart
+@@ -6,7 +6,7 @@
+ library;
+ 
+ import 'dart:math' as math;
+-import 'dart:ui' show SemanticsHitTestBehavior;
++import 'dart:ui' show ImageFilter, SemanticsHitTestBehavior;
+ 
+ import 'package:flutter/foundation.dart';
+ import 'package:flutter/gestures.dart';
+@@ -18,17 +18,17 @@ import 'color_scheme.dart';
+ import 'colors.dart';
+ import 'constants.dart';
+ import 'debug.dart';
++import 'm3e_motion.dart';
+ import 'material.dart';
+ import 'material_localizations.dart';
+-import 'motion.dart';
+ import 'scaffold.dart';
+ import 'theme.dart';
+ 
+ part 'generated/bottom_sheet_defaults_m3.g.dart';
+ 
+-const Duration _kBottomSheetEnterDuration = Duration(milliseconds: 250);
+-const Duration _kBottomSheetExitDuration = Duration(milliseconds: 200);
+-const Curve _kModalBottomSheetCurve = Easing.legacyDecelerate;
++const Duration _kBottomSheetEnterDuration = Duration(milliseconds: 420);
++const Duration _kBottomSheetExitDuration = Duration(milliseconds: 260);
++final Curve _kModalBottomSheetCurve = m3eRouteSpring;
+ const double _kMinFlingVelocity = 700.0;
+ const double _kCloseProgressThreshold = 0.5;
+ const double _kDefaultScrollControlDisabledMaxHeightRatio = 9.0 / 16.0;
+@@ -786,20 +786,27 @@ class _ModalBottomSheetState<T> extends State<_ModalBottomSheet<T>> {
+       ),
+       builder: (BuildContext context, Widget? child) {
+         final double animationValue = _sheetAnimation.value;
++        final double reveal = animationValue.clamp(0.0, 1.0);
+         return Semantics(
+           scopesRoute: true,
+           namesRoute: true,
+           label: routeLabel,
+           explicitChildNodes: true,
+           child: ClipRect(
+-            child: _BottomSheetLayoutWithSizeListener(
+-              onChildSizeChanged: (Size size) {
+-                widget.route._didChangeBarrierSemanticsClip(_getNewClipDetails(size));
+-              },
+-              animationValue: animationValue,
+-              isScrollControlled: widget.isScrollControlled,
+-              scrollControlDisabledMaxHeightRatio: widget.scrollControlDisabledMaxHeightRatio,
+-              child: child,
++            child: ImageFiltered(
++              imageFilter: ImageFilter.blur(
++                sigmaX: 12 * (1 - reveal),
++                sigmaY: 12 * (1 - reveal),
++              ),
++              child: _BottomSheetLayoutWithSizeListener(
++                onChildSizeChanged: (Size size) {
++                  widget.route._didChangeBarrierSemanticsClip(_getNewClipDetails(size));
++                },
++                animationValue: animationValue,
++                isScrollControlled: widget.isScrollControlled,
++                scrollControlDisabledMaxHeightRatio: widget.scrollControlDisabledMaxHeightRatio,
++                child: child,
++              ),
+             ),
+           ),
+         );
+diff --git a/lib/src/dialog.dart b/lib/src/dialog.dart
+index 10a830d..b9c9201 100644
+--- a/lib/src/dialog.dart
++++ b/lib/src/dialog.dart
+@@ -10,7 +10,7 @@
+ /// @docImport 'text_button.dart';
+ library;
+ 
+-import 'dart:ui' show SemanticsHitTestBehavior, SemanticsRole, clampDouble, lerpDouble;
++import 'dart:ui' show ImageFilter, SemanticsHitTestBehavior, SemanticsRole, clampDouble, lerpDouble;
+ 
+ import 'package:cupertino_ui/cupertino_ui.dart';
+ import 'package:flutter/foundation.dart';
+@@ -20,6 +20,7 @@ import 'colors.dart';
+ import 'debug.dart';
+ import 'dialog_theme.dart';
+ import 'ink_well.dart';
++import 'm3e_motion.dart';
+ import 'material.dart';
+ import 'material_localizations.dart';
+ import 'text_theme.dart';
+@@ -1901,7 +1902,7 @@ class DialogRoute<T> extends RawDialogRoute<T> {
+                return dialog;
+              },
+          barrierLabel: barrierLabel ?? MaterialLocalizations.of(context).modalBarrierDismissLabel,
+-         transitionDuration: animationStyle?.duration ?? const Duration(milliseconds: 150),
++         transitionDuration: animationStyle?.duration ?? const Duration(milliseconds: 420),
+          transitionBuilder: _buildMaterialDialogTransitions,
+        );
+ 
+@@ -1927,9 +1928,28 @@ class DialogRoute<T> extends RawDialogRoute<T> {
+     Widget child,
+   ) {
+     _setAnimation(animation);
+-    return FadeTransition(
+-      opacity: _curvedAnimation!,
++    final Curve curve = _animationStyle?.curve ?? m3eRouteSpring;
++    return AnimatedBuilder(
++      animation: animation,
+       child: super.buildTransitions(context, animation, secondaryAnimation, child),
++      builder: (BuildContext context, Widget? child) {
++        final double progress = animation.value.clamp(0.0, 1.0);
++        final double spring = curve.transform(progress);
++        final double reveal = spring.clamp(0.0, 1.0);
++        return FadeTransition(
++          opacity: _curvedAnimation!,
++          child: ImageFiltered(
++            imageFilter: ImageFilter.blur(
++              sigmaX: 14 * (1 - reveal),
++              sigmaY: 14 * (1 - reveal),
++            ),
++            child: Transform.scale(
++              scale: 0.86 + 0.14 * spring,
++              child: child,
++            ),
++          ),
++        );
++      },
+     );
+   }
+ 
+diff --git a/lib/src/m3e_motion.dart b/lib/src/m3e_motion.dart
+new file mode 100644
+index 0000000..9d693ee
+--- /dev/null
++++ b/lib/src/m3e_motion.dart
+@@ -0,0 +1,43 @@
++// Copyright 2013 The Flutter Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import 'package:flutter/animation.dart';
++import 'package:flutter/physics.dart';
++
++/// A spring played over the first [seconds] of an animation, easing out the
++/// remaining residual so the curve still ends exactly at 1.
++///
++/// Material 3 Expressive route entrances (dialogs, bottom sheets and menus)
++/// use this to open with the same springy physics as the platform instead of
++/// a fixed cubic.
++class M3ESpringCurve extends Curve {
++  M3ESpringCurve(SpringDescription spring, {required this.seconds})
++    : _simulation = SpringSimulation(spring, 0, 1, 0);
++
++  final double seconds;
++  final SpringSimulation _simulation;
++
++  late final double _residual = 1 - _simulation.x(seconds);
++
++  @override
++  double transformInternal(double t) =>
++      _simulation.x(t * seconds) + _residual * t;
++}
++
++/// The route entrance spring: a smooth approach with no visible overshoot.
++final Curve m3eRouteSpring = M3ESpringCurve(
++  SpringDescription.withDurationAndBounce(
++    duration: const Duration(milliseconds: 450),
++  ),
++  seconds: 0.45,
++);
++
++/// A spring with a little bounce for surfaces that pop in.
++final Curve m3ePopSpring = M3ESpringCurve(
++  SpringDescription.withDurationAndBounce(
++    duration: const Duration(milliseconds: 480),
++    bounce: 0.24,
++  ),
++  seconds: 0.48,
++);
+diff --git a/lib/src/popup_menu.dart b/lib/src/popup_menu.dart
+index 0022a99..162d859 100644
+--- a/lib/src/popup_menu.dart
++++ b/lib/src/popup_menu.dart
+@@ -24,6 +24,7 @@ import 'icons.dart';
+ import 'ink_well.dart';
+ import 'list_tile.dart';
+ import 'list_tile_theme.dart';
++import 'm3e_motion.dart';
+ import 'material.dart';
+ import 'material_localizations.dart';
+ import 'popup_menu_theme.dart';
+@@ -39,7 +40,7 @@ import 'tooltip.dart';
+ // void setState(VoidCallback fn) { }
+ // enum Menu { itemOne, itemTwo, itemThree, itemFour }
+ 
+-const Duration _kMenuDuration = Duration(milliseconds: 300);
++const Duration _kMenuDuration = Duration(milliseconds: 380);
+ const double _kMenuCloseIntervalEnd = 2.0 / 3.0;
+ const double _kMenuDividerHeight = 16.0;
+ const double _kMenuMaxWidth = 5.0 * _kMenuWidthStep;
+@@ -795,25 +796,39 @@ class _PopupMenuState<T> extends State<_PopupMenu<T>> {
+     return AnimatedBuilder(
+       animation: widget.route.animation!,
+       builder: (BuildContext context, Widget? child) {
++        final Animation<double> routeAnimation = widget.route.animation!;
++        final double progress = routeAnimation.value.clamp(0.0, 1.0);
++        final double spring = m3ePopSpring.transform(progress);
++        final double reveal = spring.clamp(0.0, 1.0);
+         return FadeTransition(
+-          opacity: opacity.animate(widget.route.animation!),
+-          child: Material(
+-            shape: widget.route.shape ?? popupMenuTheme.shape ?? defaults.shape,
+-            color: widget.route.color ?? popupMenuTheme.color ?? defaults.color,
+-            clipBehavior: widget.clipBehavior,
+-            type: MaterialType.card,
+-            elevation: widget.route.elevation ?? popupMenuTheme.elevation ?? defaults.elevation!,
+-            shadowColor:
+-                widget.route.shadowColor ?? popupMenuTheme.shadowColor ?? defaults.shadowColor,
+-            surfaceTintColor:
+-                widget.route.surfaceTintColor ??
+-                popupMenuTheme.surfaceTintColor ??
+-                defaults.surfaceTintColor,
+-            child: Align(
++          opacity: opacity.animate(routeAnimation),
++          child: ImageFiltered(
++            imageFilter: ImageFilter.blur(
++              sigmaX: 10 * (1 - reveal),
++              sigmaY: 10 * (1 - reveal),
++            ),
++            child: Transform.scale(
++              scale: 0.9 + 0.1 * spring,
+               alignment: AlignmentDirectional.topEnd,
+-              widthFactor: width.evaluate(widget.route.animation!),
+-              heightFactor: height.evaluate(widget.route.animation!),
+-              child: child,
++              child: Material(
++                shape: widget.route.shape ?? popupMenuTheme.shape ?? defaults.shape,
++                color: widget.route.color ?? popupMenuTheme.color ?? defaults.color,
++                clipBehavior: widget.clipBehavior,
++                type: MaterialType.card,
++                elevation: widget.route.elevation ?? popupMenuTheme.elevation ?? defaults.elevation!,
++                shadowColor:
++                    widget.route.shadowColor ?? popupMenuTheme.shadowColor ?? defaults.shadowColor,
++                surfaceTintColor:
++                    widget.route.surfaceTintColor ??
++                    popupMenuTheme.surfaceTintColor ??
++                    defaults.surfaceTintColor,
++                child: Align(
++                  alignment: AlignmentDirectional.topEnd,
++                  widthFactor: width.evaluate(routeAnimation),
++                  heightFactor: height.evaluate(routeAnimation),
++                  child: child,
++                ),
++              ),
+             ),
+           ),
+         );

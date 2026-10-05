@@ -209,9 +209,12 @@ $RefreshIndicatorPatchMaterial = "lib/scripts/material/refresh_indicator.patch"
 
 $TabsPatchMaterial = "lib/scripts/material/tabs.patch"
 
+# spring based entrance motion for dialogs, bottom sheets and popup menus
+$MotionPatchMaterial = "lib/scripts/material/motion.patch"
+
 $patches_material = @($ModalBarrierPatchMaterial, $NavigationDrawerPatchMaterial, $PopupMenuPatchMaterial,
                     $FABPatchMaterial, $TextFieldPatchMaterial, $ScaffoldPatchMaterial, $RefreshIndicatorPatchMaterial,
-                    $TabsPatchMaterial)
+                    $TabsPatchMaterial, $MotionPatchMaterial)
 
 $PubCacheDir = "~/.pub-cache"
 

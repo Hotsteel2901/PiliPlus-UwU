@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/m3e/shapes.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/floating_navigation_bar.dart';
 import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
+import 'package:PiliPlus/common/widgets/haze/haze.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/main_layout.dart';
 import 'package:PiliPlus/common/widgets/route_aware_mixin.dart';
@@ -340,39 +342,45 @@ class _MainAppState extends PopScopeState<MainApp>
         );
       } else if (_mainController.enableMYBar) {
         bottomNav = Obx(
-          () => NavigationBar(
-            maintainBottomViewPadding: true,
-            onDestinationSelected: _mainController.setIndex,
-            selectedIndex: _mainController.selectedIndex.value,
-            destinations: _mainController.navigationBars
-                .map(
-                  (e) => NavigationDestination(
-                    label: e.label,
-                    icon: _buildIcon(type: e),
-                    selectedIcon: _buildIcon(type: e, selected: true),
-                  ),
-                )
-                .toList(),
+          () => _hazeWrap(
+            NavigationBar(
+              backgroundColor: Colors.transparent,
+              maintainBottomViewPadding: true,
+              onDestinationSelected: _mainController.setIndex,
+              selectedIndex: _mainController.selectedIndex.value,
+              destinations: _mainController.navigationBars
+                  .map(
+                    (e) => NavigationDestination(
+                      label: e.label,
+                      icon: _buildIcon(type: e),
+                      selectedIcon: _buildIcon(type: e, selected: true),
+                    ),
+                  )
+                  .toList(),
+            ),
           ),
         );
       } else {
         bottomNav = Obx(
-          () => BottomNavigationBar(
-            currentIndex: _mainController.selectedIndex.value,
-            onTap: _mainController.setIndex,
-            iconSize: 16,
-            selectedFontSize: 12,
-            unselectedFontSize: 12,
-            type: .fixed,
-            items: _mainController.navigationBars
-                .map(
-                  (e) => BottomNavigationBarItem(
-                    label: e.label,
-                    icon: _buildIcon(type: e),
-                    activeIcon: _buildIcon(type: e, selected: true),
-                  ),
-                )
-                .toList(),
+          () => _hazeWrap(
+            BottomNavigationBar(
+              currentIndex: _mainController.selectedIndex.value,
+              onTap: _mainController.setIndex,
+              iconSize: 16,
+              selectedFontSize: 12,
+              unselectedFontSize: 12,
+              type: .fixed,
+              backgroundColor: Colors.transparent,
+              items: _mainController.navigationBars
+                  .map(
+                    (e) => BottomNavigationBarItem(
+                      label: e.label,
+                      icon: _buildIcon(type: e),
+                      activeIcon: _buildIcon(type: e, selected: true),
+                    ),
+                  )
+                  .toList(),
+            ),
           ),
         );
       }
@@ -405,6 +413,28 @@ class _MainAppState extends PopScopeState<MainApp>
     return bottomNav;
   }
 
+  /// Wraps a navigation bar in the Haze glass surface so scrolling content
+  /// stays visible underneath with an M3E squircle edge.
+  Widget _hazeWrap(Widget child) {
+    return HazeGlass(
+      shape: const RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(M3ECorner.xxl),
+        ),
+      ),
+      shadows: <BoxShadow>[
+        BoxShadow(
+          color: Colors.black.withValues(
+            alpha: _colorScheme.isDark ? 0.36 : 0.10,
+          ),
+          blurRadius: 24,
+          offset: const Offset(0, -6),
+        ),
+      ],
+      child: child,
+    );
+  }
+
   Widget _sideBar() {
     if (_mainController.navigationBars.length > 1) {
       if (context.isTablet && _mainController.optTabletNav) {
@@ -424,9 +454,7 @@ class _MainAppState extends PopScopeState<MainApp>
                   selectedIndex: _mainController.selectedIndex.value,
                   header: Expanded(flex: 4, child: userAndSearchVertical()),
                   tilePadding: const .symmetric(vertical: 5, horizontal: 12),
-                  indicatorShape: const RoundedRectangleBorder(
-                    borderRadius: .all(.circular(16)),
-                  ),
+                  indicatorShape: M3EShape.lg,
                   children: _mainController.navigationBars
                       .map(
                         (e) => NavigationDrawerDestination(

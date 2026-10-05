@@ -305,6 +305,14 @@ List<SettingsModel> get styleSettings => [
       }
     },
   ),
+  SwitchModel(
+    leading: const Icon(Icons.blur_on),
+    title: 'Haze 玻璃效果',
+    subtitle: '导航栏、提示等表面使用毛玻璃模糊，低端设备可关闭以提升流畅度',
+    setKey: SettingBoxKey.enableHaze,
+    defaultVal: true,
+    onChanged: (value) => Get.updateMyAppTheme(),
+  ),
   NormalModel(
     onTap: (context, setState) => Get.toNamed('/colorSetting'),
     leading: const Icon(Icons.color_lens_outlined),
