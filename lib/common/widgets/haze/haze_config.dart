@@ -90,3 +90,18 @@ class HazeConfig extends InheritedWidget {
       quality != oldWidget.quality ||
       reduceTransparency != oldWidget.reduceTransparency;
 }
+
+/// Whether the route owning [context] is currently animating a page transition.
+///
+/// A backdrop blur inside a route that is being translated or scaled must
+/// re-render the backdrop every frame, which is extremely expensive (especially
+/// on Skia). Glass surfaces therefore fall back to their opaque tonal rendering
+/// for the duration of a transition, which keeps push/pop/back-gesture motion
+/// at full frame rate.
+bool isPageTransitionActive(BuildContext context) {
+  final route = ModalRoute.of(context);
+  final animation = route?.animation;
+  final secondary = route?.secondaryAnimation;
+  return (animation?.isAnimating ?? false) ||
+      (secondary?.isAnimating ?? false);
+}

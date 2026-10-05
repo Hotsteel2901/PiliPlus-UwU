@@ -72,7 +72,10 @@ class HazeProgressiveBlur extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = HazeConfig.of(context);
-    final canBlur = (enabled ?? config.enabled) && config.canBlur;
+    final canBlur =
+        (enabled ?? config.enabled) &&
+        config.canBlur &&
+        !isPageTransitionActive(context);
     if (!canBlur || span <= 0 || sigma <= 0) {
       if (child != null) {
         return child!;

@@ -11,7 +11,7 @@ index 48270f2..8d1d953 100644
  export 'src/navigation_bar.dart';
  export 'src/navigation_bar_theme.dart';
 diff --git a/lib/src/app_bar.dart b/lib/src/app_bar.dart
-index 9f43446..c458995 100644
+index 9f43446..c05d3e9 100644
 --- a/lib/src/app_bar.dart
 +++ b/lib/src/app_bar.dart
 @@ -28,6 +28,7 @@ import 'flexible_space_bar.dart';
@@ -44,7 +44,7 @@ index 9f43446..c458995 100644
            elevation: effectiveElevation,
            type: widget.forceMaterialTransparency ? MaterialType.transparency : MaterialType.canvas,
            shadowColor: widget.shadowColor ?? appBarTheme.shadowColor ?? defaults.shadowColor,
-@@ -1284,7 +1293,12 @@ class _AppBarState extends State<AppBar> {
+@@ -1284,7 +1293,13 @@ class _AppBarState extends State<AppBar> {
                (theme.useMaterial3 ? theme.colorScheme.surfaceTint : null),
            shape: widget.shape ?? appBarTheme.shape ?? defaults.shape,
            animateColor: widget.animateColor,
@@ -52,6 +52,7 @@ index 9f43446..c458995 100644
 +          child: useGlass
 +              ? M3EGlassSurface(
 +                  shape: widget.shape ?? appBarTheme.shape ?? defaults.shape,
++                  tint: effectiveBackgroundColor,
 +                  child: Semantics(explicitChildNodes: true, child: appBar),
 +                )
 +              : Semantics(explicitChildNodes: true, child: appBar),
@@ -59,7 +60,7 @@ index 9f43446..c458995 100644
        ),
      );
 diff --git a/lib/src/bottom_sheet.dart b/lib/src/bottom_sheet.dart
-index 21fd465..769260d 100644
+index 21fd465..988b3bb 100644
 --- a/lib/src/bottom_sheet.dart
 +++ b/lib/src/bottom_sheet.dart
 @@ -19,6 +19,7 @@ import 'colors.dart';
@@ -70,7 +71,7 @@ index 21fd465..769260d 100644
  import 'material.dart';
  import 'material_localizations.dart';
  import 'scaffold.dart';
-@@ -391,29 +392,37 @@ class _BottomSheetState<T extends BottomSheet> extends State<T> {
+@@ -391,29 +392,38 @@ class _BottomSheetState<T extends BottomSheet> extends State<T> {
        }
      }
  
@@ -118,6 +119,7 @@ index 21fd465..769260d 100644
 +      child: useGlass
 +          ? M3EGlassSurface(
 +              shape: shape ?? const RoundedRectangleBorder(),
++              tint: color,
 +              child: sheetContent,
 +            )
 +          : sheetContent,
@@ -125,7 +127,7 @@ index 21fd465..769260d 100644
  
      if (constraints != null) {
 diff --git a/lib/src/dialog.dart b/lib/src/dialog.dart
-index b9c9201..0c8544f 100644
+index b9c9201..fa590da 100644
 --- a/lib/src/dialog.dart
 +++ b/lib/src/dialog.dart
 @@ -21,6 +21,7 @@ import 'debug.dart';
@@ -136,7 +138,7 @@ index b9c9201..0c8544f 100644
  import 'material.dart';
  import 'material_localizations.dart';
  import 'text_theme.dart';
-@@ -275,12 +276,27 @@ class Dialog extends StatelessWidget {
+@@ -275,12 +276,28 @@ class Dialog extends StatelessWidget {
      final BoxConstraints boxConstraints =
          constraints ?? dialogTheme.constraints ?? const BoxConstraints(minWidth: 280.0);
  
@@ -160,13 +162,14 @@ index b9c9201..0c8544f 100644
 +        child: useGlass
 +            ? M3EGlassSurface(
 +                shape: dialogShape,
++                tint: dialogColor,
 +                child: child ?? const SizedBox.shrink(),
 +              )
 +            : child,
        );
      } else {
        dialogChild = Align(
-@@ -288,15 +304,20 @@ class Dialog extends StatelessWidget {
+@@ -288,15 +305,21 @@ class Dialog extends StatelessWidget {
          child: ConstrainedBox(
            constraints: boxConstraints,
            child: Material(
@@ -184,6 +187,7 @@ index b9c9201..0c8544f 100644
 +            child: useGlass
 +                ? M3EGlassSurface(
 +                    shape: dialogShape,
++                    tint: dialogColor,
 +                    child: child ?? const SizedBox.shrink(),
 +                  )
 +                : child,
@@ -192,10 +196,10 @@ index b9c9201..0c8544f 100644
        );
 diff --git a/lib/src/m3e_glass.dart b/lib/src/m3e_glass.dart
 new file mode 100644
-index 0000000..bb2dcda
+index 0000000..67f598b
 --- /dev/null
 +++ b/lib/src/m3e_glass.dart
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,164 @@
 +// Copyright 2014 The Flutter Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -295,6 +299,17 @@ index 0000000..bb2dcda
 +    final surfaceShape = shape ?? const RoundedRectangleBorder();
 +    final sigma = blur ?? scope.blur;
 +    final base = tint ?? scope.tint ?? theme.colorScheme.surfaceContainerHigh;
++
++    // A backdrop blur inside a route that is being translated or scaled has to
++    // re-render the backdrop every frame, which is very expensive on Skia. Fall
++    // back to an opaque tint for the duration of a page transition.
++    if (_isRouteTransitionActive(context)) {
++      return ClipPath(
++        clipper: ShapeBorderClipper(shape: surfaceShape),
++        child: ColoredBox(color: base, child: child),
++      );
++    }
++
 +    final tintColor = base.withValues(alpha: tintOpacity ?? scope.tintOpacity);
 +    final highlightBase = isDark ? Colors.white : Colors.white;
 +
@@ -339,4 +354,13 @@ index 0000000..bb2dcda
 +      ],
 +    );
 +  }
++}
++
++/// Whether the route owning [context] is currently animating a page transition.
++bool _isRouteTransitionActive(BuildContext context) {
++  final route = ModalRoute.of(context);
++  final animation = route?.animation;
++  final secondary = route?.secondaryAnimation;
++  return (animation?.isAnimating ?? false) ||
++      (secondary?.isAnimating ?? false);
 +}

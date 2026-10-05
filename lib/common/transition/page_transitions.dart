@@ -20,6 +20,7 @@ import 'dart:math' as math;
 import 'package:PiliPlus/common/m3e/m3e.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:flutter/services.dart' show PredictiveBackEvent;
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -121,14 +122,18 @@ abstract final class HotPageTransitions {
   ) {
     final origin = cardZoomEnabled ? _cardZoomOf(route) : null;
     if (origin != null) {
-      return _CardZoomTransition(
-        animation: animation,
-        origin: origin,
-        child: child,
+      return PredictiveBackGestureHandler(
+        route: route,
+        child: _CardZoomTransition(
+          animation: animation,
+          origin: origin,
+          child: child,
+        ),
       );
     }
     if (!enabled) {
-      // Fall back to the stock (patched) Android transition.
+      // Fall back to the stock (patched) Android transition, which brings its
+      // own gesture detector.
       return const PredictiveBackPageTransitionsBuilder().buildTransitions(
         route,
         context,
@@ -137,9 +142,16 @@ abstract final class HotPageTransitions {
         child,
       );
     }
-    return _M3EFloatPageTransition(
-      animation: animation,
-      child: child,
+    // The stock `PredictiveBackPageTransitionsBuilder` is the piece that
+    // observes the system back gesture and feeds it into `route.animation`;
+    // replacing the builder means we have to keep that observer ourselves,
+    // otherwise predictive back stops working.
+    return PredictiveBackGestureHandler(
+      route: route,
+      child: _M3EFloatPageTransition(
+        animation: animation,
+        child: child,
+      ),
     );
   }
 
@@ -268,29 +280,50 @@ class _M3EFloatPageTransition extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final direction = textDirection == TextDirection.rtl ? -1.0 : 1.0;
+    // The page is wrapped once so the whole route is rasterised into a single
+    // layer; the transition then only re-composites it (transform + a solid
+    // scrim) instead of repainting the page every frame.
+    final page = RepaintBoundary(child: child);
 
     return ContinuousBackProgress(
       animation: animation,
       builder: (context, progress) {
         // progress: 0 = on top, 1 = dismissed.
         final t = progress.clamp(0.0, 1.0);
+        // At rest the page must not be wrapped in a transform/clip layer:
+        // a `BackdropFilter` inside one renders incorrectly (and flickers) on
+        // Skia, and there is nothing to animate anyway.
+        if (t <= 0.001) {
+          return child;
+        }
         final slide = size.width * 0.22 * direction * t;
         final scale = 1 - 0.06 * t;
-        final radius = M3ECorner.xxl * t;
-        final opacity = (1 - t * 1.35).clamp(0.0, 1.0);
 
-        return Opacity(
-          opacity: opacity,
-          child: Transform.translate(
-            offset: Offset(slide, 0),
-            child: Transform.scale(
-              scale: scale,
-              child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(radius)),
-                child: child,
-              ),
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            // Deliberately no clip here: clipping the whole route every frame
+            // forces a new clip layer and is the main source of dropped frames.
+            // The rounded "card" look is only needed while a back gesture is
+            // dragging the page, and the platform's own gesture transition
+            // handles that.
+            Transform(
+              transform: Matrix4.identity()
+                ..translateByDouble(slide, 0, 0, 1)
+                ..scaleByDouble(scale, scale, 1, 1),
+              alignment: Alignment.center,
+              child: page,
             ),
-          ),
+            // A cheap solid scrim instead of a full page `Opacity`: an
+            // `Opacity` forces a saveLayer over the whole route every frame,
+            // which is what made the transition stutter on Skia.
+            if (t > 0.001)
+              IgnorePointer(
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: 0.30 * t),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -314,6 +347,7 @@ class _M3EFloatSecondaryTransition extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final direction = textDirection == TextDirection.rtl ? -1.0 : 1.0;
+    final page = RepaintBoundary(child: child);
 
     return ContinuousBackProgress(
       animation: animation,
@@ -321,16 +355,29 @@ class _M3EFloatSecondaryTransition extends StatelessWidget {
         // reveal: 1 = fully visible, 0 = fully covered.
         final r = reveal.clamp(0.0, 1.0);
         final covered = 1 - r;
+        if (covered <= 0.001) {
+          return child;
+        }
         final scale = 1 - 0.06 * covered;
-        final opacity = 1 - 0.32 * covered;
         final slide = -size.width * 0.06 * direction * covered;
 
-        return Opacity(
-          opacity: opacity,
-          child: Transform.translate(
-            offset: Offset(slide, 0),
-            child: Transform.scale(scale: scale, child: child),
-          ),
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            Transform(
+              transform: Matrix4.identity()
+                ..translateByDouble(slide, 0, 0, 1)
+                ..scaleByDouble(scale, scale, 1, 1),
+              alignment: Alignment.center,
+              child: page,
+            ),
+            if (covered > 0.001)
+              IgnorePointer(
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: 0.22 * covered),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -365,6 +412,11 @@ class _CardZoomTransition extends StatelessWidget {
       animation: animation,
       builder: (context, progress) {
         final t = (1 - progress).clamp(0.0, 1.0);
+        // Fully open: hand the page back untouched so its own `BackdropFilter`
+        // glass renders normally (a permanent transform/clip layer breaks it).
+        if (t >= 0.999) {
+          return child;
+        }
         final end = Offset.zero & size;
         final live = origin.resolve();
         final begin = _clampToScreen(live ?? origin.begin, size);
@@ -387,7 +439,7 @@ class _CardZoomTransition extends StatelessWidget {
                   ..translateByDouble(rect.left, dy, 0, 1)
                   ..scaleByDouble(scale, scale, 1, 1),
                 alignment: Alignment.topLeft,
-                child: child,
+                child: RepaintBoundary(child: child),
               ),
               if (origin.cover != null && coverOpacity > 0.001)
                 Positioned.fromRect(
@@ -443,4 +495,73 @@ class _WindowClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(_WindowClipper oldClipper) =>
       oldClipper.rect != rect || oldClipper.radius != radius;
+}
+
+/// Feeds the Android predictive back gesture into a route's animation.
+///
+/// This is the piece of `PredictiveBackPageTransitionsBuilder` that actually
+/// makes predictive back work: the system sends `PredictiveBackEvent`s to
+/// [WidgetsBindingObserver]s, and the top route's controller is driven from
+/// them so it can be dragged and then committed or cancelled. Custom page
+/// transitions have to provide it themselves.
+class PredictiveBackGestureHandler extends StatefulWidget {
+  const PredictiveBackGestureHandler({
+    super.key,
+    required this.route,
+    required this.child,
+  });
+
+  final PageRoute<dynamic> route;
+  final Widget child;
+
+  @override
+  State<PredictiveBackGestureHandler> createState() =>
+      _PredictiveBackGestureHandlerState();
+}
+
+class _PredictiveBackGestureHandlerState extends State<PredictiveBackGestureHandler>
+    with WidgetsBindingObserver {
+  bool get _isEnabled =>
+      widget.route.isCurrent && widget.route.popGestureEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    if (!_isEnabled || backEvent.isButtonEvent) {
+      return false;
+    }
+    widget.route.handleStartBackGesture(progress: 1 - backEvent.progress);
+    return true;
+  }
+
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
+    widget.route.handleUpdateBackGestureProgress(
+      progress: 1 - backEvent.progress,
+    );
+  }
+
+  @override
+  void handleCancelBackGesture() {
+    widget.route.handleCancelBackGesture();
+  }
+
+  @override
+  void handleCommitBackGesture() {
+    widget.route.handleCommitBackGesture();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

@@ -136,7 +136,10 @@ class HazeGlass extends StatelessWidget {
     final colors = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final config = HazeConfig.of(context);
-    final canBlur = (enabled ?? config.enabled) && config.canBlur;
+    final canBlur =
+        (enabled ?? config.enabled) &&
+        config.canBlur &&
+        !isPageTransitionActive(context);
 
     final borderSide =
         border ??
