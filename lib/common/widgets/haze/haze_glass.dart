@@ -49,6 +49,9 @@ abstract final class HazeNoise {
   static bool _generating = false;
   static ui.Image? _image;
 
+  /// Backing grain texture once rasterised.
+  static ui.Image? get image => _image;
+
   /// Starts generating the texture; safe to call from `build`. Until it is
   /// ready the glass simply renders without grain (one silent rebuild when
   /// it lands, driven by [shader]).
@@ -86,9 +89,11 @@ abstract final class HazeNoise {
       final image = await picture.toImage(_size, _size);
       picture.dispose();
       _image = image; // kept alive: the shader references it
-      shader.value = image.shader(
+      shader.value = ui.ImageShader(
+        image,
         ui.TileMode.repeated,
         ui.TileMode.repeated,
+        Matrix4.identity().storage,
         filterQuality: ui.FilterQuality.none,
       );
     } catch (_) {
