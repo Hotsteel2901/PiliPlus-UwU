@@ -356,7 +356,9 @@ class MyApp extends StatelessWidget {
     // bottom sheets), so Haze reaches the whole UI and not just the app's own
     // navigation surfaces.
     child = M3EGlassScope(
-      enabled: Pref.enableHaze && !reduceTransparency,
+      enabled: Pref.enableHaze &&
+          !reduceTransparency &&
+          hazeQuality != HazeQuality.none,
       appBar: Pref.hazeScrollEdge,
       overlay: Pref.hazeDialogs,
       blur: 32 * hazeQuality.sigmaScale,

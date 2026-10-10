@@ -68,7 +68,9 @@ class _VideoCardVState extends State<VideoCardV> {
   }
 
   Future<void> onPushDetail() async {
-    if (!HotPageTransitions.claimTap()) {
+    // Keyed to the item: a double tap on *this* card is dropped, a fast tap
+    // on a *different* card is not.
+    if (!HotPageTransitions.claimTap(videoItem.param)) {
       return;
     }
     switch (videoItem.goto) {

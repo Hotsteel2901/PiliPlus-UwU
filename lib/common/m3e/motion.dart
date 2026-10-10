@@ -19,6 +19,41 @@ import 'package:cupertino_ui/cupertino_ui.dart'
     show CupertinoPageTransitionsBuilder;
 import 'package:material_ui/material_ui.dart';
 
+/// The official Material 3 Expressive duration tokens.
+///
+/// M3E groups motion into four speed buckets — short, medium, long and
+/// extraLong — each with four steps. Components pick the token that matches
+/// the size/distance of the motion rather than inventing ad-hoc millisecond
+/// values, so the whole app moves on one consistent rhythm.
+///
+/// See the Material 3 Expressive motion spec (2026): the ladder below is the
+/// canonical set.
+abstract final class M3EDurations {
+  // Short: tiny, local state changes (icon swaps, checkmarks, ripple settle).
+  static const Duration short1 = Duration(milliseconds: 50);
+  static const Duration short2 = Duration(milliseconds: 100);
+  static const Duration short3 = Duration(milliseconds: 150);
+  static const Duration short4 = Duration(milliseconds: 200);
+
+  // Medium: default component transitions (selection, expansion, fades).
+  static const Duration medium1 = Duration(milliseconds: 250);
+  static const Duration medium2 = Duration(milliseconds: 300);
+  static const Duration medium3 = Duration(milliseconds: 350);
+  static const Duration medium4 = Duration(milliseconds: 400);
+
+  // Long: larger layout/container moves (sheets, dialogs, container transform).
+  static const Duration long1 = Duration(milliseconds: 450);
+  static const Duration long2 = Duration(milliseconds: 500);
+  static const Duration long3 = Duration(milliseconds: 550);
+  static const Duration long4 = Duration(milliseconds: 600);
+
+  // Extra long: full-screen, expressive shape morphs and hero flights.
+  static const Duration extraLong1 = Duration(milliseconds: 700);
+  static const Duration extraLong2 = Duration(milliseconds: 800);
+  static const Duration extraLong3 = Duration(milliseconds: 900);
+  static const Duration extraLong4 = Duration(milliseconds: 1000);
+}
+
 /// Material 3 Expressive motion tokens.
 ///
 /// Durations are grouped into the four expressive "speed" buckets and the
@@ -26,16 +61,24 @@ import 'package:material_ui/material_ui.dart';
 /// the same physics as the platform.
 abstract final class M3EMotion {
   /// Small utility transitions, e.g. icon state changes.
-  static const Duration fast = Duration(milliseconds: 175);
+  ///
+  /// Maps to the M3E [M3EDurations.short4] token (200ms).
+  static const Duration fast = M3EDurations.short4;
 
   /// Default component transitions, e.g. selection indicators.
-  static const Duration medium = Duration(milliseconds: 300);
+  ///
+  /// Maps to the M3E [M3EDurations.medium2] token (300ms).
+  static const Duration medium = M3EDurations.medium2;
 
   /// Larger layout transitions, e.g. bottom sheets.
-  static const Duration slow = Duration(milliseconds: 450);
+  ///
+  /// Maps to the M3E [M3EDurations.long1] token (450ms).
+  static const Duration slow = M3EDurations.long1;
 
   /// Shape morphing, e.g. loading indicators.
-  static const Duration morph = Duration(milliseconds: 650);
+  ///
+  /// Maps to the M3E [M3EDurations.long4] token (600ms).
+  static const Duration morph = M3EDurations.long4;
 
   /// Emphasized easing used for both entering and exiting hero elements.
   static const Curve emphasized = Curves.easeInOutCubicEmphasized;
