@@ -548,11 +548,7 @@ abstract final class Pref {
   static bool get hazeDialogs =>
       _setting.get(SettingBoxKey.hazeDialogs, defaultValue: true);
 
-  /// Material 3 Expressive page transitions + predictive back gesture.
-  static bool get m3eTransition =>
-      _setting.get(SettingBoxKey.m3eTransition, defaultValue: false);
-
-  /// Android predictive back gesture.
+  /// Android predictive back gesture (native M3E transition).
   static bool get predictiveBack =>
       _setting.get(SettingBoxKey.predictiveBack, defaultValue: true);
 

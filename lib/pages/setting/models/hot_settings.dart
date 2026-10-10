@@ -30,12 +30,12 @@ const String kHotDeclaration = '''
 Fork 作者：GitHub @Hotsteel2901
 
 改版内容：
-· Material 3 Expressive：超椭圆形状、表情化按钮、M3E 页面转场与动效令牌
+· Material 3 Expressive：超椭圆形状、表情化按钮与动效令牌
 · Haze 玻璃系统：磨砂表面、渐进模糊、可降级的性能分级与无障碍回退
 · FlClash 风格悬浮底栏：弹簧镜头、拖动选择、果冻拉伸、弹性按压与触感反馈
 · 控件打开动效：对话框 / 底部弹层 / 弹出菜单统一为弹簧 + 去模糊进入
 · 共享元素转场：点击视频卡片放大到播放器，返回时平滑缩回卡片
-· 预测性返回手势（Android 14+）：返回手势实时预览上一页
+· 预测性返回手势（Android 14+）：页面转场使用系统原生 M3E 预测性返回
 
 上游项目：https://github.com/bggRGjQaUbCoE/PiliPlus
 Fork 仓库：https://github.com/Hotsteel2901/PiliPlus
@@ -79,17 +79,9 @@ List<SettingsModel> get hotSettings => [
     onChanged: (value) => Get.updateMyAppTheme(),
   ),
   SwitchModel(
-    leading: const Icon(Icons.animation),
-    title: 'M3E 转场',
-    subtitle: '页面打开/关闭使用自定义 M3E 悬浮转场（较重，低端设备可能掉帧）',
-    setKey: SettingBoxKey.m3eTransition,
-    defaultVal: false,
-    onChanged: (value) {},
-  ),
-  SwitchModel(
     leading: const Icon(Icons.swipe),
     title: '预测性返回手势',
-    subtitle: '返回手势实时跟手预览上一页；关闭后使用系统默认返回',
+    subtitle: '使用系统原生 M3E 预测性返回，返回手势实时预览上一页；关闭后为普通淡入淡出转场',
     setKey: SettingBoxKey.predictiveBack,
     defaultVal: true,
     onChanged: (value) {},
@@ -97,7 +89,7 @@ List<SettingsModel> get hotSettings => [
   SwitchModel(
     leading: const Icon(Icons.aspect_ratio),
     title: '视频卡片缩放转场',
-    subtitle: '点击视频卡片由卡片整页放大到播放器，返回时缩回卡片（独立于 M3E 转场）',
+    subtitle: '点击视频卡片由卡片整页放大到播放器，返回时跟手缩回卡片',
     setKey: SettingBoxKey.cardZoomTransition,
     defaultVal: true,
     onChanged: (value) {},

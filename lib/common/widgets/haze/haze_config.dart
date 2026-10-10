@@ -184,11 +184,16 @@ class _HazeTransitionGateState extends State<HazeTransitionGate> {
 /// at full frame rate.
 bool isPageTransitionActive(BuildContext context) {
   // A predictive back drag seeks the controller directly, so `isAnimating`
-  // misses it; the bridge flag covers the interactive phase.
+  // misses it; the bridge flag and the route's gesture flag cover the
+  // interactive phase. The latter also catches the native Android
+  // predictive-back transition, which the app does not drive itself.
   if (backGestureInFlight.value) {
     return true;
   }
   final route = ModalRoute.of(context);
+  if (route?.popGestureInProgress ?? false) {
+    return true;
+  }
   final animation = route?.animation;
   final secondary = route?.secondaryAnimation;
   return (animation?.isAnimating ?? false) ||

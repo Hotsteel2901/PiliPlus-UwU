@@ -242,7 +242,6 @@ abstract final class SettingBoxKey {
       saveReply = 'saveReply',
       appFont = 'appFont',
       enableHaze = 'enableHaze',
-      m3eTransition = 'm3eTransition',
       predictiveBack = 'predictiveBack',
       cardZoomTransition = 'cardZoomTransition',
       hazeQuality = 'hazeQuality',

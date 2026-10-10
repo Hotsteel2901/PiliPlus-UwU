@@ -242,33 +242,27 @@ abstract final class BackGestureBridge {
   static void debugEnd() => end();
 }
 
-/// Material 3 Expressive, predictive back aware page transitions for the whole
-/// app, plus the container transform used by video cards.
+/// Page-transition policy for the app.
 ///
-/// Why not the stock implementation?
+/// Everything except the video-card container transform uses Flutter's stock
+/// Android Material 3 Expressive transition:
 ///
-/// * `PredictiveBackPageTransitionsBuilder` only animates the route that is
-///   being dismissed. GetX routes never provide a `delegatedTransition`, so
-///   the route underneath stays completely static while the top one shrinks
-///   and slides away — the seam between the two routes is what feels broken.
-/// * The framework restarts the route controller at `1.0` before reversing it
-///   when a predictive back gesture commits (flutter/flutter#184653), so a
-///   transition that naively maps `animation.value` snaps at the commit point.
-///   [ContinuousBackProgress] compensates for that jump, deterministically,
-///   from the state kept in [BackGestureBridge].
-/// * The stock shared-element variant is AOSP's, which shrinks the page into
-///   a floating card only *after* the commit. The variant implemented here
-///   keeps the page glued to the finger the whole time (iOS / HyperOS style
-///   float) with the Android 16 motion spec's scale, device corner radius and
-///   vertical shift, animates the route below with a matching parallax, and
-///   settles with Material 3 Expressive easing.
+/// * [PredictiveBackPageTransitionsBuilder] when the predictive back gesture is
+///   enabled — the platform builder drives the Android 14+ back gesture itself
+///   and falls back to the M3E fade-forwards transition for timed navigation.
+/// * `FadeForwardsPageTransitionsBuilder` when it is disabled.
+///
+/// The video-card container transform ([cardZoomEnabled]) keeps its own,
+/// finger-following transition: the whole player morphs out of the tapped card
+/// and back into it, including while a predictive back gesture drags it. That
+/// route is the reason the app still drives a gesture through
+/// [BackGestureBridge] / [ContinuousBackProgress].
 abstract final class HotPageTransitions {
   /// Installs the transition hooks into the patched GetX runtime.
   ///
   /// Must be called once, before the first route is pushed.
   static void install() {
     GetNativeTransition.builder = buildNative;
-    GetNativeTransition.delegatedTransition = buildDelegated;
     GetNativeTransition.duration = durationFor;
   }
 
@@ -278,24 +272,20 @@ abstract final class HotPageTransitions {
   /// spec range for full-screen container transforms.
   static const Duration cardZoomDuration = M3EDurations.medium4;
 
-  /// The generic M3E float transition (`medium4`, like [cardZoomDuration]).
-  static const Duration m3eDuration = M3EDurations.medium4;
-
-  /// The stock fade-forwards duration the hybrid predictive-back mode must
-  /// keep, so its timed push/pop matches `FadeForwardsPageTransitionsBuilder`
-  /// (the `long1` token, eyeballed by Flutter against Android 16).
-  static const Duration predictiveBackDuration = M3EDurations.long1;
+  /// The stock Android M3E page-transition duration
+  /// (`FadeForwardsPageTransitionsBuilder.kTransitionMilliseconds`, the `long1`
+  /// token Flutter eyeballed against Android 16). Shared by the native
+  /// predictive-back and fade-forwards builders.
+  static const Duration nativeDuration = M3EDurations.long1;
 
   /// Only the app's own native page transition is ever replaced.
   static bool get _native => Pref.pageTransition == Transition.native;
 
-  /// The generic M3E page open/close transition (opt in: it is the heaviest).
-  static bool get m3eEnabled => _native && Pref.m3eTransition;
-
-  /// The video card container transform, independent from [m3eEnabled].
+  /// The video card container transform: the only custom transition left.
   static bool get cardZoomEnabled => _native && Pref.cardZoomTransition;
 
-  /// Whether the app drives the Android predictive back gesture itself.
+  /// Whether the native Android predictive back transition is used instead of
+  /// plain fade-forwards.
   static bool get predictiveBack => _native && Pref.predictiveBack;
 
   static Object? _lastTapKey;
@@ -323,22 +313,16 @@ abstract final class HotPageTransitions {
   }
 
   static Duration? durationFor(PageRoute<dynamic> route) {
-    if (PlatformUtils.isDarwin) {
+    if (PlatformUtils.isDarwin || !_native) {
       // Apple platforms keep the Cupertino transition *and* its native timing;
-      // none of the custom builders below ever run there.
+      // the other transition styles keep their own timing too.
       return null;
     }
     if (cardZoomEnabled && _cardZoomOf(route) != null) {
       return cardZoomDuration;
     }
-    if (m3eEnabled) {
-      return m3eDuration;
-    }
-    if (predictiveBack) {
-      return predictiveBackDuration;
-    }
-    // Everything else keeps the stock, snappy 300ms.
-    return null;
+    // The native Android M3E page transition.
+    return nativeDuration;
   }
 
   static Widget buildNative(
@@ -348,8 +332,9 @@ abstract final class HotPageTransitions {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    // The video card zoom is independent: it can be used on its own even when
-    // the generic M3E transition is disabled.
+    // The video card zoom is the only custom transition left: it morphs the
+    // player out of the tapped card (and back) and keeps its finger-following
+    // predictive back gesture.
     if (cardZoomEnabled) {
       final origin = _cardZoomOf(route);
       if (origin != null) {
@@ -364,40 +349,19 @@ abstract final class HotPageTransitions {
         );
       }
     }
-    if (m3eEnabled) {
-      return _PredictiveBackGestureHandler(
-        route: route,
-        builder: (context) => _M3EFloatPageTransition(
-          route: route,
-          animation: animation,
-          child: child,
-        ),
-      );
-    }
+    // Everything else uses the stock Android Material 3 Expressive transition.
+    // On Android 14+ [PredictiveBackPageTransitionsBuilder] drives the back
+    // gesture itself and falls back to the M3E fade-forwards transition for
+    // timed push/pop; with the gesture disabled it is plain fade-forwards.
     if (predictiveBack) {
-      // Stock push/pop, but a finger-following float while the gesture is
-      // dragging the page: the platform's AOSP variant barely moves the page,
-      // which is what feels sluggish and disconnected. The swap is seamless:
-      // both builders render the page at identity when the route is at rest
-      // on top, which is exactly where a gesture starts and ends.
-      return _PredictiveBackGestureHandler(
-        route: route,
-        builder: (context) => BackGestureBridge.active
-            ? _M3EFloatPageTransition(
-                route: route,
-                animation: animation,
-                child: child,
-              )
-            : const FadeForwardsPageTransitionsBuilder().buildTransitions(
-                route,
-                context,
-                animation,
-                secondaryAnimation,
-                child,
-              ),
+      return const PredictiveBackPageTransitionsBuilder().buildTransitions(
+        route,
+        context,
+        animation,
+        secondaryAnimation,
+        child,
       );
     }
-    // Predictive back turned off: plain M3 fade-forwards.
     return const FadeForwardsPageTransitionsBuilder().buildTransitions(
       route,
       context,
@@ -405,46 +369,6 @@ abstract final class HotPageTransitions {
       secondaryAnimation,
       child,
     );
-  }
-
-  /// Animates the route below an incoming transition so the two routes move as
-  /// one surface. The custom paths use a matching scale, the stock path reuses
-  /// the platform's fade-forwards delegation.
-  static Widget? buildDelegated(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    bool allowSnapshotting,
-    Widget? child,
-  ) {
-    if (child == null || !_native || PlatformUtils.isDarwin) {
-      return child;
-    }
-    // A back gesture in flight always uses the float delegation, even in the
-    // hybrid mode: the route below has to breathe with the dragged page
-    // instead of sitting behind a stock fade. The swap happens while the
-    // route below is still fully covered, so it is never visible.
-    if (m3eEnabled ||
-        cardZoomEnabled ||
-        (predictiveBack && BackGestureBridge.active)) {
-      return _M3EFloatSecondaryTransition(
-        animation: secondaryAnimation,
-        child: child,
-      );
-    }
-    final delegated =
-        const FadeForwardsPageTransitionsBuilder().delegatedTransition;
-    if (delegated == null) {
-      return child;
-    }
-    return delegated(
-          context,
-          animation,
-          secondaryAnimation,
-          allowSnapshotting,
-          child,
-        ) ??
-        child;
   }
 
   static CardZoomOrigin? _cardZoomOf(PageRoute<dynamic> route) {
@@ -554,227 +478,6 @@ class _ContinuousBackProgressState extends State<ContinuousBackProgress> {
 
   @override
   Widget build(BuildContext context) => widget.builder(context, _progress);
-}
-
-/// Fallback display corner radius for the predictive back card, matching the
-/// AOSP transition (`_kDeviceBorderRadius`) when Android does not report the
-/// real display corners.
-const double _kFallbackDeviceCorner = 32;
-
-double _deviceCorner(BuildContext context) {
-  final radii = MediaQuery.maybeDisplayCornerRadiiOf(context);
-  final corner = radii?.topLeft.x ?? _kFallbackDeviceCorner;
-  return corner.clamp(16.0, 48.0);
-}
-
-/// The default transition: the page floats up over the previous one, and on
-/// the way back it follows the finger, rounds into the device-corner card of
-/// the Android 16 predictive back spec and settles with M3E easing.
-class _M3EFloatPageTransition extends StatelessWidget {
-  const _M3EFloatPageTransition({
-    required this.route,
-    required this.animation,
-    required this.child,
-  });
-
-  final PageRoute<dynamic> route;
-  final Animation<double> animation;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
-    final direction = textDirection == TextDirection.rtl ? -1.0 : 1.0;
-    final corner = _deviceCorner(context);
-    // The page is wrapped once so the whole route is rasterised into a single
-    // layer; the transition then only re-composites it (transform + a solid
-    // scrim) instead of repainting the page every frame.
-    final page = RepaintBoundary(child: child);
-
-    return ContinuousBackProgress(
-      animation: animation,
-      builder: (context, progress) {
-        // progress: 0 = on top, 1 = dismissed.
-        final raw = progress.clamp(0.0, 1.0);
-        // Only the gesture owner floats with the finger; every other route
-        // keeps its own, animation-driven rendering.
-        final bridge = BackGestureBridge.gesture;
-        final g = identical(bridge.owner, route)
-            ? bridge
-            : BackGestureSnapshot.idle;
-
-        final double t; // eased "gone" driving scale
-        final double slide;
-        final double lift;
-        final double radius;
-        final double scrim;
-        if (!g.active) {
-          // Timed push/pop: no transform layer at rest, M3E emphasized tokens
-          // otherwise — decelerate for the page entering the screen,
-          // accelerate for the page leaving it.
-          if (raw <= 0.001) {
-            return child;
-          }
-          final status = animation.status;
-          final goingAway =
-              status == AnimationStatus.reverse ||
-              status == AnimationStatus.dismissed;
-          t = goingAway
-              ? Easing.emphasizedAccelerate.transform(raw)
-              : 1 - Easing.emphasizedDecelerate.transform(1 - raw);
-          slide = size.width * 0.22 * direction * t;
-          lift = 0;
-          radius = 0;
-          // A cheap solid scrim instead of a full page `Opacity`: an
-          // `Opacity` forces a saveLayer over the whole route every frame.
-          scrim = 0.24 * t;
-        } else if (g.dragging) {
-          // Glued to the finger, linear with the system gesture progress —
-          // no easing tail. The page shrinks to the spec's 0.90 floor and
-          // rounds towards the display's own corner radius as it is dragged.
-          t = raw;
-          slide = g.dx;
-          lift = g.dy;
-          radius = corner * raw;
-          // No self-scrim while dragging: darkening the dragged page is what
-          // made the gesture look muddy. Depth comes from the scale, the
-          // rounding and the parallax of the route below.
-          scrim = 0;
-        } else if (g.committed) {
-          // Released towards the pop: carry the exact finger position into an
-          // emphasized slide off the edge, continuous with the drag.
-          final span = 1 - g.releaseGone;
-          final k = span <= 0.001
-              ? 1.0
-              : ((raw - g.releaseGone) / span).clamp(0.0, 1.0);
-          final eased = Curves.easeInOutCubicEmphasized.transform(k);
-          final edgeSign = g.dx == 0 ? direction : g.dx.sign;
-          t = raw;
-          slide = g.dx + (edgeSign * size.width * 1.05 - g.dx) * eased;
-          lift = g.dy * (1 - eased);
-          radius = corner * (g.releaseGone + (1 - g.releaseGone) * eased);
-          scrim = 0;
-        } else {
-          // Released towards a cancel: spring back to identity, decelerating
-          // out of the finger position (M3E emphasizedDecelerate).
-          final span = g.releaseGone;
-          final k = span <= 0.001
-              ? 1.0
-              : (1 - raw / span).clamp(0.0, 1.0);
-          final eased = Easing.emphasizedDecelerate.transform(k);
-          t = raw;
-          slide = g.dx * (1 - eased);
-          lift = g.dy * (1 - eased);
-          radius = corner * raw;
-          scrim = 0;
-        }
-
-        final scale = 1 - (g.active ? 0.10 : 0.06) * t;
-        Widget content = Transform(
-          transform: Matrix4.identity()
-            ..translateByDouble(slide, lift, 0, 1)
-            ..scaleByDouble(scale, scale, 1, 1),
-          alignment: Alignment.center,
-          child: page,
-        );
-        // The rounded card look is only needed while a back gesture owns the
-        // page; clipping the whole route every timed frame would force a new
-        // clip layer for nothing.
-        if (radius > 0.5) {
-          content = ClipRRect(
-            borderRadius: BorderRadius.circular(
-              radius.clamp(0, size.shortestSide / 2),
-            ),
-            child: content,
-          );
-        }
-        if (scrim <= 0.001) {
-          return content;
-        }
-        return Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            content,
-            IgnorePointer(
-              child: ColoredBox(color: Colors.black.withValues(alpha: scrim)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// Animates the route underneath an incoming one: it recedes and dims a little
-/// while covered, and springs back to full size as it is revealed by a back
-/// gesture. During a gesture the parallax is linear (it has to track the
-/// finger); timed transitions use the M3E emphasized tokens.
-class _M3EFloatSecondaryTransition extends StatelessWidget {
-  const _M3EFloatSecondaryTransition({
-    required this.animation,
-    required this.child,
-  });
-
-  final Animation<double> animation;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final textDirection = Directionality.maybeOf(context) ?? TextDirection.ltr;
-    final direction = textDirection == TextDirection.rtl ? -1.0 : 1.0;
-    final page = RepaintBoundary(child: child);
-
-    return ContinuousBackProgress(
-      animation: animation,
-      builder: (context, reveal) {
-        // reveal: 1 = fully visible, 0 = fully covered.
-        final r = reveal.clamp(0.0, 1.0);
-        if (r >= 0.999) {
-          return child;
-        }
-        final covered = 1 - r;
-        final double t;
-        if (BackGestureBridge.active) {
-          // Linear: the route below has to track the dragged page 1:1.
-          t = covered;
-        } else {
-          final status = animation.status;
-          t = status == AnimationStatus.forward ||
-                  status == AnimationStatus.completed
-              // Being covered by a push: accelerate away.
-              ? Easing.emphasizedAccelerate.transform(covered)
-              // Being revealed by a pop: decelerate in.
-              : 1 - Easing.emphasizedDecelerate.transform(r);
-        }
-        // The Android 16 predictive back spec scales the revealed route from
-        // 0.95; the small counter-slide is the iOS-style parallax that keeps
-        // the two surfaces reading as one stack.
-        final scale = 1 - 0.05 * t;
-        final slide = -size.width * 0.06 * direction * t;
-
-        return Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            Transform(
-              transform: Matrix4.identity()
-                ..translateByDouble(slide, 0, 0, 1)
-                ..scaleByDouble(scale, scale, 1, 1),
-              alignment: Alignment.center,
-              child: page,
-            ),
-            if (t > 0.001)
-              IgnorePointer(
-                child: ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.20 * t),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
 }
 
 /// The video card container transform.

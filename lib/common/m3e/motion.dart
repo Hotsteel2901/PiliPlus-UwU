@@ -92,12 +92,13 @@ abstract final class M3EMotion {
 
   /// The Material 3 Expressive page transition set.
   ///
-  /// Android (and desktop) use the predictive-back aware fade forwards
-  /// transition that ships with Material 3 Expressive, while Apple platforms
-  /// keep their native horizontal slide.
+  /// Android uses the stock predictive-back aware Material 3 Expressive
+  /// transition ([PredictiveBackPageTransitionsBuilder], which falls back to
+  /// fade-forwards for timed navigation), desktop keeps fade-forwards, and
+  /// Apple platforms keep their native horizontal slide.
   static const PageTransitionsTheme pageTransitions = PageTransitionsTheme(
     builders: <TargetPlatform, PageTransitionsBuilder>{
-      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
       TargetPlatform.fuchsia: FadeForwardsPageTransitionsBuilder(),
       TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
       TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
