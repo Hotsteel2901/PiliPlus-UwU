@@ -86,7 +86,9 @@ class _VideoCardHState extends State<VideoCardH> {
             onTap:
                 onTap ??
                 () {
-                  if (!HotPageTransitions.claimTap()) {
+                  // Keyed to the video: a double tap on *this* card is
+                  // dropped, a fast tap on a *different* card is not.
+                  if (!HotPageTransitions.claimTap(videoItem.bvid)) {
                     return;
                   }
                   pushVideoH(videoItem, cardZoom: _cardZoom());

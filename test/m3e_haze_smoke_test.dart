@@ -83,6 +83,75 @@ void main() {
     expect(find.text('glass'), findsOneWidget);
   });
 
+  testWidgets('glass returns after a route transition settles', (tester) async {
+    bool? transitioning;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => TextButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => HazeTransitionGate(
+                builder: (context, active) {
+                  transitioning = active;
+                  return const Scaffold(body: Text('destination'));
+                },
+              ),
+            ),
+          ),
+          child: const Text('open'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    expect(transitioning, isTrue);
+    await tester.pumpAndSettle();
+    expect(transitioning, isFalse);
+  });
+
+  testWidgets('interactive back drops glass and restores it on release', (tester) async {
+    addTearDown(() => backGestureInFlight.value = false);
+    bool? transitioning;
+    await tester.pumpWidget(MaterialApp(
+      home: HazeTransitionGate(
+        builder: (context, active) {
+          transitioning = active;
+          return const Scaffold(body: Text('surface'));
+        },
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(transitioning, isFalse);
+    backGestureInFlight.value = true;
+    await tester.pump();
+    expect(transitioning, isTrue);
+    backGestureInFlight.value = false;
+    await tester.pump();
+    expect(transitioning, isFalse);
+  });
+
+  testWidgets('progressive edge keeps an opaque tint with blur off', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: HazeConfig(
+        quality: HazeQuality.none,
+        child: Scaffold(
+          body: HazeProgressiveBlur(
+            tint: Color(0x6688AACC),
+            child: SizedBox(height: 120),
+          ),
+        ),
+      ),
+    ));
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is ColoredBox &&
+            widget.color == const Color(0xFF88AACC),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Haze glass degrades without blur', (tester) async {
     await tester.pumpWidget(
       _buildTestApp(
