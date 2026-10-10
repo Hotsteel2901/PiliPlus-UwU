@@ -562,7 +562,7 @@ class _ContinuousBackProgressState extends State<ContinuousBackProgress> {
 const double _kFallbackDeviceCorner = 32;
 
 double _deviceCorner(BuildContext context) {
-  final radii = MediaQuery.displayCornerRadiiOf(context);
+  final radii = MediaQuery.maybeDisplayCornerRadiiOf(context);
   final corner = radii?.topLeft.x ?? _kFallbackDeviceCorner;
   return corner.clamp(16.0, 48.0);
 }
