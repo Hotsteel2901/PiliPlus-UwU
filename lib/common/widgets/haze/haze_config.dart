@@ -103,99 +103,11 @@ class HazeConfig extends InheritedWidget {
 /// Set while an Android predictive back gesture is in flight (drag *or*
 /// settle), by `BackGestureBridge` in `page_transitions.dart`.
 ///
-/// During a drag the route controller is seeked directly, so
-/// [Animation.isAnimating] stays false even though the whole route — and the
-/// one underneath — is being transformed every frame. A [BackdropFilter] under
-/// that motion has to re-sample and re-blur its backdrop each frame, which is
-/// the single most expensive thing the glass system can do. Surfaces read this
-/// through [isPageTransitionActive] and drop to their tonally-matched solid
-/// fallback for the duration, keeping the gesture at full frame rate.
-///
-/// Declared here (a leaf both the transitions and the glass can import) rather
-/// than in `page_transitions.dart` to keep the dependency one-directional.
+/// Glass deliberately does **not** react to this any more. Every surface keeps
+/// the material it was built with for its whole lifetime: the old behaviour —
+/// dropping to an opaque tint while a route animated — changed the colour of
+/// the app bar, the dock and every dialog on the first frame and changed it
+/// back on the last one, which is exactly the "the chrome flashes on every
+/// navigation" feeling. The rendering budget is chosen once, through
+/// [HazeQuality], instead.
 final ValueNotifier<bool> backGestureInFlight = ValueNotifier(false);
-
-/// Rebuilds glass only when a route starts/stops animating or a predictive back
-/// gesture begins/ends. Listening to animation *status* rather than every tick
-/// avoids rebuilding the frosted subtree on every navigation frame, while
-/// ensuring the blur actually returns after the transition settles.
-class HazeTransitionGate extends StatefulWidget {
-  const HazeTransitionGate({super.key, required this.builder});
-
-  final Widget Function(BuildContext context, bool transitioning) builder;
-
-  @override
-  State<HazeTransitionGate> createState() => _HazeTransitionGateState();
-}
-
-class _HazeTransitionGateState extends State<HazeTransitionGate> {
-  Animation<double>? _primary;
-  Animation<double>? _secondary;
-
-  @override
-  void initState() {
-    super.initState();
-    backGestureInFlight.addListener(_onStatusChanged);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    final primary = route?.animation;
-    final secondary = route?.secondaryAnimation;
-    if (primary != _primary) {
-      _primary?.removeStatusListener(_onStatusChanged);
-      _primary = primary;
-      _primary?.addStatusListener(_onStatusChanged);
-    }
-    if (secondary != _secondary) {
-      _secondary?.removeStatusListener(_onStatusChanged);
-      _secondary = secondary;
-      _secondary?.addStatusListener(_onStatusChanged);
-    }
-  }
-
-  void _onStatusChanged([AnimationStatus? _]) {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _primary?.removeStatusListener(_onStatusChanged);
-    _secondary?.removeStatusListener(_onStatusChanged);
-    backGestureInFlight.removeListener(_onStatusChanged);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      widget.builder(context, isPageTransitionActive(context));
-}
-
-/// Whether the route owning [context] is currently animating a page transition.
-///
-/// A backdrop blur inside a route that is being translated or scaled must
-/// re-render the backdrop every frame, which is extremely expensive (especially
-/// on Skia). Glass surfaces therefore fall back to their opaque tonal rendering
-/// for the duration of a transition, which keeps push/pop/back-gesture motion
-/// at full frame rate.
-bool isPageTransitionActive(BuildContext context) {
-  // A predictive back drag seeks the controller directly, so `isAnimating`
-  // misses it; the bridge flag and the route's gesture flag cover the
-  // interactive phase. The latter also catches the native Android
-  // predictive-back transition, which the app does not drive itself.
-  if (backGestureInFlight.value) {
-    return true;
-  }
-  final route = ModalRoute.of(context);
-  if (route?.popGestureInProgress ?? false) {
-    return true;
-  }
-  final animation = route?.animation;
-  final secondary = route?.secondaryAnimation;
-  return (animation?.isAnimating ?? false) ||
-      (secondary?.isAnimating ?? false);
-}

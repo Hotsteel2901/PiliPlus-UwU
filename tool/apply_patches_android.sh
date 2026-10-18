@@ -83,7 +83,6 @@ MATERIAL_PATCHES=(
     scaffold.patch
     refresh_indicator.patch
     tabs.patch
-    motion.patch
     glass.patch
     bottom_sheet_android.patch
 )

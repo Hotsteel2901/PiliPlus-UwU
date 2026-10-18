@@ -78,14 +78,11 @@ class HazeProgressiveBlur extends StatelessWidget {
   final double falloff;
 
   @override
-  Widget build(BuildContext context) => HazeTransitionGate(
-    builder: _buildBlur,
-  );
-
-  Widget _buildBlur(BuildContext context, bool transitionActive) {
+  Widget build(BuildContext context) {
     final config = HazeConfig.of(context);
-    final canBlur =
-        (enabled ?? config.enabled) && config.canBlur && !transitionActive;
+    // Stable for the whole lifetime of the surface: no switching to a solid
+    // wash mid-transition (that made the scroll edge pop on every navigation).
+    final canBlur = (enabled ?? config.enabled) && config.canBlur;
     if (!canBlur || span <= 0 || sigma <= 0) {
       final fallback = child ?? SizedBox(
         height: edge.isVertical ? span : null,
@@ -94,16 +91,9 @@ class HazeProgressiveBlur extends StatelessWidget {
       if (tint == null) {
         return fallback;
       }
-      // The scroll edge must not vanish when quality is "none", the user
-      // requests less transparency, or a route is being transformed. Match
-      // the tint during motion; fully cover it when blur is unavailable.
-      final opacity = transitionActive && config.canBlur
-          ? (tint!.a + 0.30).clamp(0.0, 1.0)
-          : 1.0;
-      return ColoredBox(
-        color: tint!.withValues(alpha: opacity),
-        child: fallback,
-      );
+      // The scroll edge must not vanish when the quality tier is "none" or the
+      // user asks for less transparency: cover it with the flat tint instead.
+      return ColoredBox(color: tint!, child: fallback);
     }
 
     final int bands = config.quality.bandCount.clamp(2, 16);

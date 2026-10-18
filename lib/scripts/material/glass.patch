@@ -1,17 +1,17 @@
 diff --git a/lib/material_ui.dart b/lib/material_ui.dart
-index 48270f2..8d1d953 100644
+index c884f04..d352c32 100644
 --- a/lib/material_ui.dart
 +++ b/lib/material_ui.dart
-@@ -130,6 +130,7 @@ export 'src/menu_theme.dart';
+@@ -129,6 +129,7 @@ export 'src/menu_style.dart';
+ export 'src/menu_theme.dart';
  export 'src/mergeable_material.dart';
  export 'src/migration_utility.dart';
- export 'src/m3e_motion.dart';
 +export 'src/m3e_glass.dart';
  export 'src/motion.dart';
  export 'src/navigation_bar.dart';
  export 'src/navigation_bar_theme.dart';
 diff --git a/lib/src/app_bar.dart b/lib/src/app_bar.dart
-index 9f43446..c05d3e9 100644
+index 46bd03b..b5d2f20 100644
 --- a/lib/src/app_bar.dart
 +++ b/lib/src/app_bar.dart
 @@ -28,6 +28,7 @@ import 'flexible_space_bar.dart';
@@ -22,7 +22,7 @@ index 9f43446..c05d3e9 100644
  import 'material.dart';
  import 'scaffold.dart';
  import 'tabs.dart';
-@@ -1265,12 +1266,20 @@ class _AppBarState extends State<AppBar> {
+@@ -1226,12 +1227,20 @@ class _AppBarState extends State<AppBar> {
            theme.useMaterial3 ? const Color(0x00000000) : null,
          );
  
@@ -44,7 +44,7 @@ index 9f43446..c05d3e9 100644
            elevation: effectiveElevation,
            type: widget.forceMaterialTransparency ? MaterialType.transparency : MaterialType.canvas,
            shadowColor: widget.shadowColor ?? appBarTheme.shadowColor ?? defaults.shadowColor,
-@@ -1284,7 +1293,13 @@ class _AppBarState extends State<AppBar> {
+@@ -1245,7 +1254,13 @@ class _AppBarState extends State<AppBar> {
                (theme.useMaterial3 ? theme.colorScheme.surfaceTint : null),
            shape: widget.shape ?? appBarTheme.shape ?? defaults.shape,
            animateColor: widget.animateColor,
@@ -60,18 +60,18 @@ index 9f43446..c05d3e9 100644
        ),
      );
 diff --git a/lib/src/bottom_sheet.dart b/lib/src/bottom_sheet.dart
-index 21fd465..988b3bb 100644
+index 99f4161..e9d7827 100644
 --- a/lib/src/bottom_sheet.dart
 +++ b/lib/src/bottom_sheet.dart
-@@ -19,6 +19,7 @@ import 'colors.dart';
+@@ -18,6 +18,7 @@ import 'color_scheme.dart';
+ import 'colors.dart';
  import 'constants.dart';
  import 'debug.dart';
- import 'm3e_motion.dart';
 +import 'm3e_glass.dart';
  import 'material.dart';
  import 'material_localizations.dart';
- import 'scaffold.dart';
-@@ -391,29 +392,38 @@ class _BottomSheetState<T extends BottomSheet> extends State<T> {
+ import 'motion.dart';
+@@ -388,29 +389,38 @@ class _BottomSheetState extends State<BottomSheet> {
        }
      }
  
@@ -127,18 +127,18 @@ index 21fd465..988b3bb 100644
  
      if (constraints != null) {
 diff --git a/lib/src/dialog.dart b/lib/src/dialog.dart
-index b9c9201..fa590da 100644
+index eb3580d..a2edab3 100644
 --- a/lib/src/dialog.dart
 +++ b/lib/src/dialog.dart
-@@ -21,6 +21,7 @@ import 'debug.dart';
+@@ -20,6 +20,7 @@ import 'colors.dart';
+ import 'debug.dart';
  import 'dialog_theme.dart';
  import 'ink_well.dart';
- import 'm3e_motion.dart';
 +import 'm3e_glass.dart';
  import 'material.dart';
  import 'material_localizations.dart';
  import 'text_theme.dart';
-@@ -275,12 +276,28 @@ class Dialog extends StatelessWidget {
+@@ -277,12 +278,28 @@ class Dialog extends StatelessWidget {
      final BoxConstraints boxConstraints =
          constraints ?? dialogTheme.constraints ?? const BoxConstraints(minWidth: 280.0);
  
@@ -169,7 +169,7 @@ index b9c9201..fa590da 100644
        );
      } else {
        dialogChild = Align(
-@@ -288,15 +305,21 @@ class Dialog extends StatelessWidget {
+@@ -290,15 +307,21 @@ class Dialog extends StatelessWidget {
          child: ConstrainedBox(
            constraints: boxConstraints,
            child: Material(
@@ -196,17 +196,16 @@ index b9c9201..fa590da 100644
        );
 diff --git a/lib/src/m3e_glass.dart b/lib/src/m3e_glass.dart
 new file mode 100644
-index 0000000..67f598b
+index 0000000..77db4db
 --- /dev/null
 +++ b/lib/src/m3e_glass.dart
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,149 @@
 +// Copyright 2014 The Flutter Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
 +
 +import 'dart:ui' show ImageFilter;
 +
-+import 'package:flutter/foundation.dart' show Listenable;
 +import 'package:flutter/widgets.dart';
 +
 +import 'colors.dart';
@@ -290,26 +289,7 @@ index 0000000..67f598b
 +  final double? tintOpacity;
 +
 +  @override
-+  Widget build(BuildContext context) {
-+    // Do not install animation listeners at all when glass is switched off.
-+    if (M3EGlassScope.maybeOf(context)?.enabled != true) {
-+      return child;
-+    }
-+    final route = ModalRoute.of(context);
-+    if (route == null) {
-+      return _buildSurface(context);
-+    }
-+    // Re-evaluate at settle too: otherwise a surface first built during a
-+    // push can remain in its solid fallback long after the route has stopped.
-+    // The fallback is cheap while the animation is ticking.
-+    return AnimatedBuilder(
-+      animation: Listenable.merge(<Listenable>[
-+        if (route.animation != null) route.animation!,
-+        if (route.secondaryAnimation != null) route.secondaryAnimation!,
-+      ]),
-+      builder: (context, _) => _buildSurface(context),
-+    );
-+  }
++  Widget build(BuildContext context) => _buildSurface(context);
 +
 +  Widget _buildSurface(BuildContext context) {
 +    final scope = M3EGlassScope.maybeOf(context);
@@ -324,21 +304,6 @@ index 0000000..67f598b
 +
 +    final double effectiveOpacity = tintOpacity ?? scope.tintOpacity;
 +    final tintColor = base.withValues(alpha: effectiveOpacity);
-+
-+    // A backdrop blur inside a route that is being translated or scaled has to
-+    // re-render the backdrop every frame, which is very expensive on Skia. Fall
-+    // back to a tonally-continuous solid tint for the duration of a page
-+    // transition, so the surface reads as "the same glass, momentarily solid"
-+    // instead of flashing a different colour.
-+    if (_isRouteTransitionActive(context)) {
-+      return ClipPath(
-+        clipper: ShapeBorderClipper(shape: surfaceShape),
-+        child: ColoredBox(
-+          color: base.withValues(alpha: (effectiveOpacity + 0.30).clamp(0.0, 1.0)),
-+          child: child,
-+        ),
-+      );
-+    }
 +
 +    final highlightBase = Colors.white;
 +
@@ -383,13 +348,4 @@ index 0000000..67f598b
 +      ],
 +    );
 +  }
-+}
-+
-+/// Whether the route owning [context] is currently animating a page transition.
-+bool _isRouteTransitionActive(BuildContext context) {
-+  final route = ModalRoute.of(context);
-+  final animation = route?.animation;
-+  final secondary = route?.secondaryAnimation;
-+  return (animation?.isAnimating ?? false) ||
-+      (secondary?.isAnimating ?? false);
 +}

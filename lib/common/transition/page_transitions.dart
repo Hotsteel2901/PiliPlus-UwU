@@ -268,9 +268,10 @@ abstract final class HotPageTransitions {
 
   /// The video card container transform.
   ///
-  /// The Material 3 Expressive `medium4` token (400 ms): the lower bound of the
-  /// spec range for full-screen container transforms.
-  static const Duration cardZoomDuration = M3EDurations.medium4;
+  /// The Material 3 Expressive `medium3` token (350 ms): the window only has to
+  /// grow out of a card, so it settles well inside the spec's 300–400 ms range
+  /// for container transforms — a 400 ms opening read as sluggish on a tap.
+  static const Duration cardZoomDuration = M3EDurations.medium3;
 
   /// The stock Android M3E page-transition duration
   /// (`FadeForwardsPageTransitionsBuilder.kTransitionMilliseconds`, the `long1`
@@ -482,12 +483,20 @@ class _ContinuousBackProgressState extends State<ContinuousBackProgress> {
 
 /// The video card container transform.
 ///
-/// The whole destination route is laid out full screen and then mapped so that
-/// its player lands exactly on the tapped card, clipped to the interpolated
-/// rect and corner radius. The card cover is painted on top while the route is
-/// still card sized and cross-fades into the real page, so push *and* pop are a
-/// single, seamless morph — including while a predictive back gesture is
-/// dragging the player back towards the card.
+/// A single movement in three staggered parts, in the order the Material
+/// container-transform spec staggers them:
+///
+/// 1. a rounded window grows from the tapped card to the whole screen, with the
+///    card cover painted inside it, so the first half of the motion is the card
+///    itself expanding;
+/// 2. the route is mapped into that window and fades in only once it is already
+///    a large part of the screen (`pageOpacity`), so it is never shown as an
+///    unreadable miniature;
+/// 3. the cover dissolves as the page takes over, and both land on the exact
+///    identity transform at the end.
+///
+/// Push *and* pop are the same movement, including while a predictive back
+/// gesture drags the window back towards the card.
 ///
 /// Per the shared element spec, a committed gesture does *not* throw the page
 /// off the edge: it lands the card in its slot (the finger offset retracts to
@@ -508,7 +517,6 @@ class _CardZoomTransition extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final padding = MediaQuery.paddingOf(context);
 
     return ContinuousBackProgress(
       animation: animation,
@@ -524,8 +532,8 @@ class _CardZoomTransition extends StatelessWidget {
         final double dx;
         final double dy;
         if (!g.active) {
-          // Fully open: hand the page back untouched so its own `BackdropFilter`
-          // glass renders normally (a permanent transform/clip layer breaks it).
+          // Fully open: hand the route back untouched, so no clip or transform
+          // layer outlives the transition (and its glass can render normally).
           if (open >= 0.999) {
             return child;
           }
@@ -560,33 +568,34 @@ class _CardZoomTransition extends StatelessWidget {
           dy = g.dy * open * (1 - eased);
         }
 
-        final end = Offset.zero & size;
         final live = origin.resolve();
         final begin = _clampToScreen(live ?? origin.begin, size);
-        final rect = Rect.lerp(begin, end, t)!.translate(dx, dy);
+        // The window grows from the card to the screen and the route is mapped
+        // into it. The page is *not* shown while it is that small: it fades in
+        // only once the window is already a large part of the screen (the
+        // Material container-transform sequencing), so the first half of the
+        // motion is the card cover alone instead of a readable miniature of the
+        // whole player racing upwards.
+        final rect = Rect.lerp(begin, Offset.zero & size, t)!.translate(dx, dy);
         final scale = rect.width <= 0 ? 1.0 : rect.width / size.width;
-        // Map the top of the player (roughly the status bar inset) onto the top
-        // of the interpolated window, and let the rest of the page follow.
-        final topInset = padding.top;
-        // At card size the player (below the status bar) must land at the
-        // source rect. Fade this correction out as the window expands, or the
-        // page jumps by the status-bar height when the full-screen shortcut
-        // returns the untransformed child at the end of the animation.
-        final dyOffset = rect.top - topInset * scale * (1 - t);
         final radius = origin.radius * (1 - t);
-        final coverOpacity = (1 - t / 0.55).clamp(0.0, 1.0);
+        final pageOpacity = ((t - 0.35) / 0.40).clamp(0.0, 1.0);
+        final coverOpacity = (1 - (t - 0.45) / 0.35).clamp(0.0, 1.0);
 
         return ClipPath(
           clipper: _WindowClipper(rect: rect, radius: radius),
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              Transform(
-                transform: Matrix4.identity()
-                  ..translateByDouble(rect.left, dyOffset, 0, 1)
-                  ..scaleByDouble(scale, scale, 1, 1),
-                alignment: Alignment.topLeft,
-                child: RepaintBoundary(child: child),
+              Opacity(
+                opacity: pageOpacity,
+                child: Transform(
+                  transform: Matrix4.identity()
+                    ..translateByDouble(rect.left, rect.top, 0, 1)
+                    ..scaleByDouble(scale, scale, 1, 1),
+                  alignment: Alignment.topLeft,
+                  child: RepaintBoundary(child: child),
+                ),
               ),
               if (origin.cover != null && coverOpacity > 0.001)
                 Positioned.fromRect(
@@ -617,8 +626,8 @@ class _CardZoomTransition extends StatelessWidget {
   static Rect _clampToScreen(Rect rect, Size size) {
     final width = rect.width.clamp(1.0, size.width);
     final height = rect.height.clamp(1.0, size.height);
-    final left = rect.left.clamp(-width * 0.5, size.width - width * 0.5);
-    final top = rect.top.clamp(-height * 0.5, size.height - height * 0.5);
+    final left = rect.left.clamp(0.0, size.width - width);
+    final top = rect.top.clamp(0.0, size.height - height);
     return Rect.fromLTWH(left, top, width, height);
   }
 }

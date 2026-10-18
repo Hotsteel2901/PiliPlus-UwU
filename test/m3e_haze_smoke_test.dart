@@ -83,51 +83,44 @@ void main() {
     expect(find.text('glass'), findsOneWidget);
   });
 
-  testWidgets('glass returns after a route transition settles', (tester) async {
-    bool? transitioning;
-    await tester.pumpWidget(MaterialApp(
-      home: Builder(
-        builder: (context) => TextButton(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) => HazeTransitionGate(
-                builder: (context, active) {
-                  transitioning = active;
-                  return const Scaffold(body: Text('destination'));
-                },
-              ),
-            ),
-          ),
-          child: const Text('open'),
-        ),
-      ),
-    ));
-    await tester.tap(find.text('open'));
-    await tester.pump();
-    expect(transitioning, isTrue);
+  testWidgets('glass never changes material during a route transition', (
+    tester,
+  ) async {
+    // The old behaviour swapped every frosted surface for an opaque tint while
+    // a route animated, so the app bar and the dock visually flashed on every
+    // navigation. Glass now keeps one material for its whole lifetime.
+    await tester.pumpWidget(_buildTestApp());
     await tester.pumpAndSettle();
-    expect(transitioning, isFalse);
+    expect(find.byType(BackdropFilter), findsWidgets);
+
+    tester
+        .state<NavigatorState>(find.byType(Navigator).first)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (context) => const Scaffold(body: Text('destination')),
+          ),
+        );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(find.byType(BackdropFilter), findsWidgets);
+
+    await tester.pumpAndSettle();
+    expect(find.text('destination'), findsOneWidget);
   });
 
-  testWidgets('interactive back drops glass and restores it on release', (tester) async {
+  testWidgets('glass survives an interactive back gesture', (tester) async {
     addTearDown(() => backGestureInFlight.value = false);
-    bool? transitioning;
-    await tester.pumpWidget(MaterialApp(
-      home: HazeTransitionGate(
-        builder: (context, active) {
-          transitioning = active;
-          return const Scaffold(body: Text('surface'));
-        },
-      ),
-    ));
+    await tester.pumpWidget(_buildTestApp());
     await tester.pumpAndSettle();
-    expect(transitioning, isFalse);
+    expect(find.byType(BackdropFilter), findsWidgets);
+
     backGestureInFlight.value = true;
     await tester.pump();
-    expect(transitioning, isTrue);
+    expect(find.byType(BackdropFilter), findsWidgets);
+
     backGestureInFlight.value = false;
     await tester.pump();
-    expect(transitioning, isFalse);
+    expect(find.byType(BackdropFilter), findsWidgets);
   });
 
   testWidgets('progressive edge keeps an opaque tint with blur off', (tester) async {

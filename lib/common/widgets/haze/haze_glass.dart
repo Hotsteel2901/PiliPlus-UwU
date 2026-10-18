@@ -140,16 +140,6 @@ enum HazeGlassStyle {
 
   double tintOpacity({required bool isDark}) =>
       isDark ? tintOpacityDark : tintOpacityLight;
-
-  /// Tint opacity of the opaque fallback (transparency reduced, blur off or a
-  /// page transition in flight).
-  ///
-  /// Derived from the blur-state tint instead of a separate colour: the
-  /// fallback has to read as "the same glass, momentarily solid", otherwise
-  /// every navigation flashes the surface (the old 100%-opaque
-  /// `surfaceContainer` fallback did exactly that).
-  double fallbackOpacity({required bool isDark}) =>
-      math.min(1.0, tintOpacity(isDark: isDark) + 0.30);
 }
 
 /// A frosted glass surface: blur, tint, film grain, a hairline edge and a
@@ -213,20 +203,15 @@ class HazeGlass extends StatelessWidget {
   final Clip clipBehavior;
 
   @override
-  Widget build(BuildContext context) => HazeTransitionGate(
-    builder: _buildSurface,
-  );
-
-  Widget _buildSurface(BuildContext context, bool transitionActive) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final config = HazeConfig.of(context);
-    final blurEnabled = (enabled ?? config.enabled) && config.canBlur;
-    // A backdrop blur inside a route that is being translated or scaled has
-    // to re-render the backdrop every frame; during a transition the surface
-    // drops to its solid fallback, which is tint-matched to the blur state.
-    final canBlur = blurEnabled && !transitionActive;
+    // One material for the whole lifetime of the surface. Swapping to an opaque
+    // tint while a route animates is what made every navigation flash the app
+    // bar and the dock; the cost of the blur is budgeted by [HazeQuality].
+    final canBlur = (enabled ?? config.enabled) && config.canBlur;
 
     final base = tint ?? colors.surfaceContainerHigh;
     final effectiveTintOpacity = tintOpacity ?? style.tintOpacity(isDark: isDark);
@@ -331,11 +316,7 @@ class HazeGlass extends StatelessWidget {
         child: DecoratedBox(
           decoration: ShapeDecoration(
             shape: _shapeWithSide(shape, borderSide),
-            color: base.withValues(
-              alpha: blurEnabled
-                  ? (effectiveTintOpacity + 0.30).clamp(0.0, 1.0)
-                  : 1.0,
-            ),
+            color: base,
           ),
           child: child,
         ),

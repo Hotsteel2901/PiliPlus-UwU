@@ -15,26 +15,22 @@
  * along with PiliPlus.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import 'dart:ui' show ImageFilter;
-
 import 'package:PiliPlus/common/m3e/m3e.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Pops its child in with a spring: it scales up from [beginScale] while
-/// fading in and un-blurring, the same materialise motion FlClash uses for
-/// its surfaces.
+/// Pops its child in: a short fade with a small scale-up.
 ///
 /// Used for overlay surfaces that are not routes, such as toasts and loading
-/// dialogs, where the spring cannot be provided by a route transition.
+/// dialogs. Deliberately has no blur and no overshoot — a spring plus a
+/// full-surface blur reads as a smeary flash on a phone, especially over the
+/// video UI, and these are the surfaces you see most often.
 class Materialize extends StatefulWidget {
   const Materialize({
     super.key,
     this.child,
-    // Matches the length of `m3ePopSpring` from the patched `material_ui`.
-    this.duration = const Duration(milliseconds: 480),
-    this.beginScale = 0.86,
-    this.beginBlur = 10,
+    this.duration = const Duration(milliseconds: 200),
+    this.beginScale = 0.94,
     this.curve,
     this.animate = true,
   });
@@ -45,9 +41,7 @@ class Materialize extends StatefulWidget {
 
   final double beginScale;
 
-  final double beginBlur;
-
-  /// Defaults to `m3ePopSpring` from `material_ui`.
+  /// Defaults to the emphasised decelerate token.
   final Curve? curve;
 
   final bool animate;
@@ -83,24 +77,17 @@ class _MaterializeState extends State<Materialize>
     if (!widget.animate || reduceMotion || !Pref.hotMotion) {
       return child;
     }
-    final curve = widget.curve ?? m3ePopSpring;
+    final curve = widget.curve ?? M3EMotion.emphasizedDecelerate;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
         final double raw = _controller.value.clamp(0.0, 1.0);
-        final double spring = curve.transform(raw);
-        final double unblur = (1 - spring).clamp(0.0, 1.0);
+        final double eased = curve.transform(raw);
         return Opacity(
           opacity: M3EMotion.emphasizedDecelerate.transform(raw),
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: widget.beginBlur * unblur,
-              sigmaY: widget.beginBlur * unblur,
-            ),
-            child: Transform.scale(
-              scale: widget.beginScale + (1 - widget.beginScale) * spring,
-              child: child,
-            ),
+          child: Transform.scale(
+            scale: widget.beginScale + (1 - widget.beginScale) * eased,
+            child: child,
           ),
         );
       },
