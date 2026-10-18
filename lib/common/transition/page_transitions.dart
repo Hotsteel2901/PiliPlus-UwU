@@ -568,8 +568,15 @@ class _CardZoomTransition extends StatelessWidget {
           dy = g.dy * open * (1 - eased);
         }
 
+        // Prefer the live card rect, but only while the card is really on
+        // screen: a card that scrolled away would otherwise drag the window to
+        // wherever it went, and the captured rect is a better guess than that.
         final live = origin.resolve();
-        final begin = _clampToScreen(live ?? origin.begin, size);
+        final visible = live != null && _isMostlyOnScreen(live, size);
+        final begin = _clampToScreen(visible ? live : origin.begin, size);
+        // Without a cover there is nothing to hide the growing window behind,
+        // so the route has to be visible from the first frame.
+        final hasCover = origin.cover != null;
         // The window grows from the card to the screen and the route is mapped
         // into it. The page is *not* shown while it is that small: it fades in
         // only once the window is already a large part of the screen (the
@@ -579,7 +586,9 @@ class _CardZoomTransition extends StatelessWidget {
         final rect = Rect.lerp(begin, Offset.zero & size, t)!.translate(dx, dy);
         final scale = rect.width <= 0 ? 1.0 : rect.width / size.width;
         final radius = origin.radius * (1 - t);
-        final pageOpacity = ((t - 0.35) / 0.40).clamp(0.0, 1.0);
+        final pageOpacity = hasCover
+            ? ((t - 0.35) / 0.40).clamp(0.0, 1.0)
+            : 1.0;
         final coverOpacity = (1 - (t - 0.45) / 0.35).clamp(0.0, 1.0);
 
         return ClipPath(
@@ -597,7 +606,7 @@ class _CardZoomTransition extends StatelessWidget {
                   child: RepaintBoundary(child: child),
                 ),
               ),
-              if (origin.cover != null && coverOpacity > 0.001)
+              if (hasCover && coverOpacity > 0.001)
                 Positioned.fromRect(
                   rect: rect,
                   child: IgnorePointer(
@@ -621,6 +630,19 @@ class _CardZoomTransition extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Whether at least a third of [rect] is inside the screen.
+  static bool _isMostlyOnScreen(Rect rect, Size size) {
+    final area = rect.width * rect.height;
+    if (area <= 0) {
+      return false;
+    }
+    final visible = rect.intersect(Offset.zero & size);
+    if (visible.isEmpty) {
+      return false;
+    }
+    return (visible.width * visible.height) / area >= 0.35;
   }
 
   static Rect _clampToScreen(Rect rect, Size size) {

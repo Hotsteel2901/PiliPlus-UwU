@@ -33,8 +33,8 @@ Fork 作者：GitHub @Hotsteel2901
 · Material 3 Expressive：超椭圆形状、表情化按钮与动效令牌
 · Haze 玻璃系统：磨砂表面、渐进模糊、可降级的性能分级与无障碍回退
 · FlClash 风格悬浮底栏：弹簧镜头、拖动选择、果冻拉伸、弹性按压与触感反馈
-· 控件打开动效：对话框 / 底部弹层 / 弹出菜单统一为弹簧 + 去模糊进入
-· 共享元素转场：点击视频卡片放大到播放器，返回时平滑缩回卡片
+· 控件打开动效：对话框 / 底部弹层 / 弹出菜单沿用 Material 原生节奏，不做模糊 / 弹簧花活
+· 共享元素转场：点击视频卡片，封面先行展开、页面内容延后淡入，返回时跟手缩回卡片
 · 预测性返回手势（Android 14+）：页面转场使用系统原生 M3E 预测性返回
 
 上游项目：https://github.com/bggRGjQaUbCoE/PiliPlus
@@ -89,7 +89,7 @@ List<SettingsModel> get hotSettings => [
   SwitchModel(
     leading: const Icon(Icons.aspect_ratio),
     title: '视频卡片缩放转场',
-    subtitle: '点击视频卡片由卡片整页放大到播放器，返回时跟手缩回卡片',
+    subtitle: '点击视频卡片由卡片展开为播放页，返回时跟手缩回卡片（封面先行，内容延后淡入）',
     setKey: SettingBoxKey.cardZoomTransition,
     defaultVal: true,
     onChanged: (value) {},
@@ -97,7 +97,7 @@ List<SettingsModel> get hotSettings => [
   SwitchModel(
     leading: const Icon(Icons.waves),
     title: 'FlClash 风格弹性动效',
-    subtitle: '悬浮表面使用弹簧 + 去模糊的进入动效',
+    subtitle: '悬浮表面（提示 / 加载）使用短淡入加轻微缩放的进入动效',
     setKey: SettingBoxKey.hotMotion,
     defaultVal: true,
     onChanged: (value) {},
